@@ -1,0 +1,67 @@
+{
+  "name": "EduDocs Academy Corpus",
+  "version": "1.0",
+  "generated_by": "scripts/generate_corpus_pdfs.py",
+  "documents": [
+    {
+      "id": "regulamento-do-estudante",
+      "title": "Regulamento do Estudante",
+      "version": "1.0",
+      "effective_date": "2026-07-01",
+      "source_path": "corpus/sources/regulamento-do-estudante.md",
+      "pdf_path": "corpus/documents/regulamento-do-estudante.pdf",
+      "category": "regulamento",
+      "language": "pt-BR",
+      "sha256": "d0c539f764e62ba48148fd7760ba42f7eaadc4b3f9e065769109a7ea53fc8c05",
+      "enabled": true
+    },
+    {
+      "id": "politica-de-cancelamento-e-reembolso",
+      "title": "Política de Cancelamento e Reembolso",
+      "version": "1.0",
+      "effective_date": "2026-07-01",
+      "source_path": "corpus/sources/politica-de-cancelamento-e-reembolso.md",
+      "pdf_path": "corpus/documents/politica-de-cancelamento-e-reembolso.pdf",
+      "category": "cancelamento",
+      "language": "pt-BR",
+      "sha256": "048fd02f7b99a79748fff1a9414d6bbbc1a4166a7cd17823a0d325eb742f2d85",
+      "enabled": true
+    },
+    {
+      "id": "guia-de-certificados",
+      "title": "Guia de Certificados",
+      "version": "1.0",
+      "effective_date": "2026-07-01",
+      "source_path": "corpus/sources/guia-de-certificados.md",
+      "pdf_path": "corpus/documents/guia-de-certificados.pdf",
+      "category": "certificados",
+      "language": "pt-BR",
+      "sha256": "03c3eeab1c43779d2e968d8ea370b653bc19c500ebefc7965868828ded522845",
+      "enabled": true
+    },
+    {
+      "id": "faq-de-cursos-e-matriculas",
+      "title": "FAQ de Cursos e Matrículas",
+      "version": "1.0",
+      "effective_date": "2026-07-01",
+      "source_path": "corpus/sources/faq-de-cursos-e-matriculas.md",
+      "pdf_path": "corpus/documents/faq-de-cursos-e-matriculas.pdf",
+      "category": "faq",
+      "language": "pt-BR",
+      "sha256": "c0a18451054d5657d07e945760f8819f9f3155f372b34c1c04211e5c69359d20",
+      "enabled": true
+    },
+    {
+      "id": "politica-de-privacidade",
+      "title": "Política de Privacidade",
+      "version": "1.0",
+      "effective_date": "2026-07-01",
+      "source_path": "corpus/sources/politica-de-privacidade.md",
+      "pdf_path": "corpus/documents/politica-de-privacidade.pdf",
+      "category": "privacidade",
+      "language": "pt-BR",
+      "sha256": "d77eedcc8728b7392b4a34adad763380227d344a5787f47662fe961b1621d947",
+      "enabled": true
+    }
+  ]
+}
