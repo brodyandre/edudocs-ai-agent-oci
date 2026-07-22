@@ -14,6 +14,7 @@ IGNORED_DIRS = {
     ".hg",
     ".svn",
     ".cache",
+    ".next",
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",

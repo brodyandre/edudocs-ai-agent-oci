@@ -1,6 +1,6 @@
 # EduDocs AI
 
-EduDocs AI é um projeto em desenvolvimento para um agente RAG voltado a consultas sobre documentos educacionais fictícios. O repositório prepara a base técnica do Challenge antes da implementação funcional da API, da interface, do agente e da infraestrutura.
+EduDocs AI é um projeto em desenvolvimento para um agente RAG voltado a consultas sobre documentos educacionais fictícios. O repositório prepara a base técnica do Challenge e já contém API, agente, ingestão local, avaliação determinística e interface web para consulta do corpus.
 
 ## Problema
 
@@ -8,13 +8,13 @@ Instituições educacionais lidam com normas, comunicados, guias e materiais de 
 
 ## Escopo do MVP
 
-O MVP planejado contempla ingestão de PDFs fictícios, extração e normalização de texto, criação de chunks, geração de embeddings locais, índice persistido, busca híbrida, orquestração do fluxo RAG e resposta por provedor de LLM isolado por interface.
+O MVP contempla ingestão de PDFs fictícios, extração e normalização de texto, criação de chunks, geração de embeddings locais, índice persistido, busca híbrida, orquestração do fluxo RAG, resposta por provedor de LLM isolado por interface e uma interface Next.js para consulta assistida.
 
 Ficam fora do MVP autenticação, OCR, upload público, Kubernetes, banco relacional e funcionalidades administrativas.
 
 ## Arquitetura resumida
 
-O fluxo planejado conecta uma interface Next.js a uma API FastAPI. A API aciona um grafo LangGraph, que consulta um recuperador híbrido sobre índice local e metadados. Quando houver evidências suficientes, a resposta será gerada por um provedor de LLM inicialmente baseado em Groq, sem acoplamento direto ao restante da aplicação.
+O fluxo conecta uma interface Next.js a uma API FastAPI. A API aciona um grafo LangGraph, que consulta um recuperador híbrido sobre índice local e metadados. Quando houver evidências suficientes, a resposta é gerada por um provedor de LLM isolado por interface; em desenvolvimento e testes, o provider falso determinístico evita dependência de rede ou segredos.
 
 ## Tecnologias planejadas
 
@@ -30,7 +30,18 @@ O fluxo planejado conecta uma interface Next.js a uma API FastAPI. A API aciona 
 
 ## Status atual
 
-Em desenvolvimento. Esta versão contém a estrutura inicial e a documentação técnica do projeto. A API, a interface, o agente RAG, a ingestão funcional e o deploy ainda não foram implementados.
+Em desenvolvimento. Esta versão contém corpus fictício, ingestão, índice local, API FastAPI, agente RAG, avaliação determinística e interface web Next.js. Deploy em OCI e funcionalidades administrativas seguem fora do escopo atual.
+
+## Interface web
+
+A interface fica em `apps/web` e consome `GET /health`, `GET /ready`, `GET /api/documents` e `POST /api/chat`.
+
+```bash
+npm --prefix apps/web ci
+npm --prefix apps/web run dev
+```
+
+Consulte [apps/web/README.md](apps/web/README.md) para instalação, variáveis, validações, integração e limitações.
 
 ## Roadmap resumido
 

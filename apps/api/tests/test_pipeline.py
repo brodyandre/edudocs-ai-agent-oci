@@ -250,6 +250,22 @@ async def test_api_health() -> None:
 
 
 @pytest.mark.anyio
+async def test_api_cors_permite_frontend_local() -> None:
+    transport = httpx.ASGITransport(app=create_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.options(
+            "/api/chat",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "Content-Type",
+            },
+        )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
+@pytest.mark.anyio
 async def test_api_ready_e_documents(
     tiny_settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:

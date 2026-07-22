@@ -65,6 +65,22 @@ class Settings(BaseSettings):
     evidence_limit: int = Field(default=5, ge=1, le=10)
     max_context_chars: int = Field(default=6000, ge=500, le=20000)
     max_retrieval_attempts: int = Field(default=2, ge=1, le=2)
+    cors_origins: tuple[str, ...] = (
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+    )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: object) -> object:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith("["):
+                return value
+            return tuple(origin.strip() for origin in stripped.split(",") if origin.strip())
+        return value
 
     @field_validator("chunk_overlap")
     @classmethod
