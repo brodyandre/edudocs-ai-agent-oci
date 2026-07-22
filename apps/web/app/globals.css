@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
-  background: #f8faf7;
+  color-scheme: dark;
+  background: #0d1412;
 }
 
 * {
@@ -17,10 +17,8 @@ html {
 
 body {
   margin: 0;
-  background:
-    linear-gradient(180deg, rgba(248, 250, 247, 0.96), rgba(237, 244, 241, 0.96)),
-    #f8faf7;
-  color: #17202a;
+  background: #0d1412;
+  color: #e9eee9;
   font-family:
     ui-sans-serif,
     system-ui,
@@ -28,6 +26,15 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+}
+
+body::before {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
+  content: "";
+  inset: 0;
+  opacity: 0.035;
+  pointer-events: none;
+  position: fixed;
 }
 
 button,
@@ -55,15 +62,113 @@ summary:focus-visible {
 }
 
 @layer components {
+  .edudocs-shell {
+    @apply relative min-h-screen overflow-hidden px-4 text-paper sm:px-6 lg:px-8;
+  }
+
+  .app-shell {
+    @apply mx-auto max-w-[1500px];
+  }
+
+  .hero-shell {
+    @apply relative flex min-h-[560px] flex-col justify-between border-b border-line py-8;
+  }
+
+  .hero-shell::after {
+    color: rgba(167, 243, 194, 0.035);
+    content: "AI";
+    font-size: clamp(14rem, 30vw, 28rem);
+    font-weight: 800;
+    letter-spacing: -0.12em;
+    line-height: 0.7;
+    position: absolute;
+    right: -24px;
+    top: 58px;
+    z-index: -1;
+  }
+
+  .eyebrow {
+    @apply text-[0.69rem] font-bold uppercase tracking-[0.16em] text-pine;
+  }
+
+  .hero-title {
+    @apply mt-5 max-w-5xl font-serif text-[clamp(4rem,8vw,8.2rem)] font-normal leading-[0.86] tracking-normal text-paper;
+  }
+
+  .hero-title em {
+    @apply not-italic text-pine;
+  }
+
+  .hero-copy {
+    @apply max-w-2xl font-serif text-[clamp(1.25rem,2vw,1.85rem)] leading-snug text-paper/80;
+  }
+
+  .section-nav {
+    @apply sticky top-0 z-20 flex min-h-16 items-center justify-between gap-6 border-b border-line bg-ink/90 py-3 backdrop-blur-xl;
+  }
+
   .nav-link {
-    @apply rounded-md px-3 py-2 text-sm font-semibold text-pine transition hover:bg-paper hover:text-teal;
+    @apply px-3 py-2 text-[0.67rem] font-semibold uppercase tracking-[0.09em] text-muted transition hover:bg-pine hover:text-ink;
+  }
+
+  .responsible-use {
+    @apply grid border-b border-line lg:grid-cols-3;
+  }
+
+  .responsible-use span {
+    @apply flex min-h-14 items-center border-b border-line px-4 text-[0.66rem] leading-relaxed text-paper/70 lg:border-b-0 lg:border-r;
+  }
+
+  .responsible-use span::before {
+    @apply mr-2 text-pine;
+    content: "✓";
+  }
+
+  .section-heading {
+    @apply flex items-end justify-between gap-5;
+  }
+
+  .section-heading h2 {
+    @apply mt-2 font-serif text-[clamp(2.45rem,5vw,4.6rem)] font-normal leading-none tracking-normal text-paper;
+  }
+
+  .section-number {
+    @apply font-serif text-3xl italic text-rose;
+  }
+
+  .panel {
+    @apply border border-line bg-panel/80 shadow-soft;
+  }
+
+  .panel-soft {
+    @apply border border-line bg-panelSoft/80;
+  }
+
+  .example-chip {
+    @apply border border-line bg-transparent px-3 py-2 text-left text-sm font-medium text-muted transition hover:border-pine hover:bg-pine hover:text-ink;
+  }
+
+  .primary-button {
+    @apply min-h-12 border border-pine bg-pine px-5 py-3 text-sm font-semibold text-ink transition hover:border-rose hover:bg-rose disabled:cursor-not-allowed disabled:border-line disabled:bg-line disabled:text-muted;
+  }
+
+  .ghost-button {
+    @apply border border-line px-3 py-2 text-sm font-semibold text-pine transition hover:border-pine hover:bg-pine hover:text-ink disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .field {
+    @apply mt-2 min-h-28 w-full resize-y border border-line bg-ink px-3 py-3 text-base text-paper shadow-sm transition placeholder:text-muted disabled:bg-panel;
+  }
+
+  .status-chip {
+    @apply inline-flex items-center gap-2 border px-3 py-1 text-sm font-semibold;
   }
 
   .status-dot {
-    @apply inline-block h-2.5 w-2.5 rounded-full;
+    @apply inline-block h-2 w-2 rounded-full shadow-[0_0_0_5px_rgba(167,243,194,0.1)];
   }
 
   .copy-button {
-    @apply rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-pine transition hover:border-teal;
+    @apply border border-line bg-transparent px-3 py-2 text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-muted transition hover:border-pine hover:bg-pine hover:text-ink;
   }
 }

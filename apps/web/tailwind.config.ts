@@ -5,16 +5,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#17202a",
-        paper: "#f8faf7",
-        line: "#d8e0d6",
-        pine: "#245347",
-        teal: "#1f766d",
-        amber: "#b7791f",
-        rose: "#b4233c",
+        ink: "#0d1412",
+        panel: "#141d1a",
+        panelSoft: "#19231f",
+        paper: "#e9eee9",
+        muted: "#9eaaa4",
+        line: "#2a3531",
+        pine: "#a7f3c2",
+        teal: "#6ee7a9",
+        amber: "#e6c878",
+        rose: "#ff816f",
       },
       boxShadow: {
-        soft: "0 16px 50px rgba(23, 32, 42, 0.08)",
+        soft: "0 28px 90px rgba(0, 0, 0, 0.24)",
       },
     },
   },
