@@ -1,28 +1,50 @@
 # EduDocs AI
 
-EduDocs AI e um projeto em desenvolvimento para estruturar uma base profissional de estudos sobre um agente de IA voltado a documentos educacionais.
+EduDocs AI é um projeto em desenvolvimento para um agente RAG voltado a consultas sobre documentos educacionais fictícios. O repositório prepara a base técnica do Challenge antes da implementação funcional da API, da interface, do agente e da infraestrutura.
 
-## Objetivo do Challenge
+## Problema
 
-O objetivo do Challenge e preparar a fundacao do projeto `edudocs-ai-agent-oci`, com organizacao inicial para uma futura API, interface web, infraestrutura OCI e experimentos de recuperacao de informacao.
+Instituições educacionais lidam com normas, comunicados, guias e materiais de apoio espalhados em PDFs. O projeto propõe uma arquitetura para consultar esse acervo com respostas baseadas em evidências, citando documento e página quando houver suporte no corpus.
 
-## Status
+## Escopo do MVP
 
-Em desenvolvimento.
+O MVP planejado contempla ingestão de PDFs fictícios, extração e normalização de texto, criação de chunks, geração de embeddings locais, índice persistido, busca híbrida, orquestração do fluxo RAG e resposta por provedor de LLM isolado por interface.
 
-## Stack planejada
+Ficam fora do MVP autenticação, OCR, upload público, Kubernetes, banco relacional e funcionalidades administrativas.
 
-- Python para API e automacoes.
-- Node.js para interface web.
-- Docker e Docker Compose para ambiente local.
-- Terraform para infraestrutura.
-- Oracle Cloud Infrastructure como destino de implantacao.
-- Recursos de IA generativa e RAG em etapas futuras.
+## Arquitetura resumida
 
-## Corpus
+O fluxo planejado conecta uma interface Next.js a uma API FastAPI. A API aciona um grafo LangGraph, que consulta um recuperador híbrido sobre índice local e metadados. Quando houver evidências suficientes, a resposta será gerada por um provedor de LLM inicialmente baseado em Groq, sem acoplamento direto ao restante da aplicação.
 
-O corpus usado neste projeto sera ficticio e criado apenas para fins de demonstracao, validacao tecnica e avaliacao do Challenge.
+## Tecnologias planejadas
 
-## Observacao
+- Next.js, React, TypeScript e Tailwind CSS para a interface.
+- Python e FastAPI para a API.
+- LangGraph para orquestração do agente.
+- LangChain apenas em integrações nas quais agregue valor real.
+- PyMuPDF para extração de PDFs.
+- Embeddings multilíngues locais configuráveis.
+- Busca semântica persistida e busca lexical com TF-IDF ou BM25.
+- Docker Compose para execução local.
+- Terraform, Nginx e OCI Compute ARM64 para deploy planejado.
 
-Esta versao inicial contem somente a estrutura minima do repositorio. A API, o agente RAG e a interface ainda nao foram implementados.
+## Status atual
+
+Em desenvolvimento. Esta versão contém a estrutura inicial e a documentação técnica do projeto. A API, a interface, o agente RAG, a ingestão funcional e o deploy ainda não foram implementados.
+
+## Roadmap resumido
+
+1. Documentar arquitetura, pipeline RAG, segurança e plano de entregas.
+2. Criar corpus fictício e critérios de avaliação.
+3. Implementar ingestão local de PDFs.
+4. Implementar recuperador híbrido e provedor falso determinístico para testes.
+5. Implementar API FastAPI e interface Next.js.
+6. Preparar Docker Compose, Terraform e deploy em OCI.
+7. Registrar evidências finais, exemplos e captura de tela.
+
+## Documentos técnicos
+
+- [Arquitetura](docs/architecture.md)
+- [Pipeline RAG](docs/rag-pipeline.md)
+- [Segurança](docs/security.md)
+- [Plano de entregas](docs/delivery-plan.md)
