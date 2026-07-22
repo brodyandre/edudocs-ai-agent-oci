@@ -160,6 +160,30 @@ summary:focus-visible {
     @apply mt-2 min-h-28 w-full resize-y border border-line bg-ink px-3 py-3 text-base text-paper shadow-sm transition placeholder:text-muted disabled:bg-panel;
   }
 
+  .empty-guide {
+    @apply border border-dashed border-line bg-ink/50 p-5 text-sm text-muted;
+  }
+
+  .empty-guide h3 {
+    @apply mt-2 font-serif text-2xl font-normal leading-tight text-paper;
+  }
+
+  .guide-step {
+    @apply border border-line bg-panel/70 p-4;
+  }
+
+  .guide-step span {
+    @apply font-serif text-xl italic text-rose;
+  }
+
+  .guide-step strong {
+    @apply mt-2 block text-sm text-paper;
+  }
+
+  .guide-step p {
+    @apply mt-2 text-sm leading-6 text-muted;
+  }
+
   .status-chip {
     @apply inline-flex items-center gap-2 border px-3 py-1 text-sm font-semibold;
   }

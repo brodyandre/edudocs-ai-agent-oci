@@ -142,7 +142,7 @@ describe("EduDocsApp", () => {
   it("carrega /ready", async () => {
     const fetchMock = await renderReady();
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:8000/ready", expect.any(Object));
-    expect(screen.getByText("41 chunks")).toBeVisible();
+    expect(screen.getByText("41 trechos")).toBeVisible();
   });
 
   it("carrega documentos", async () => {
@@ -182,7 +182,7 @@ describe("EduDocsApp", () => {
   it("lista documentos", async () => {
     await renderReady();
     expect(screen.getByText("Guia de Certificados")).toBeVisible();
-    expect(screen.getByText(/Categoria certificados/i)).toBeVisible();
+    expect(screen.getByText(/Tema certificados/i)).toBeVisible();
   });
 
   it("mostra estado sem documentos", async () => {
@@ -265,7 +265,7 @@ describe("EduDocsApp", () => {
     await user.type(screen.getByLabelText("Pergunta ao agente"), "Como solicito meu certificado?");
     await user.click(screen.getByRole("button", { name: "Enviar pergunta" }));
     expect(screen.getByRole("button", { name: "Enviando..." })).toBeDisabled();
-    expect(screen.getByText(/Consultando documentos/i)).toBeVisible();
+    expect(screen.getByText(/Buscando nos documentos/i)).toBeVisible();
     resolveChat(jsonResponse(groundedChat));
     await screen.findByText(groundedChat.answer);
   });

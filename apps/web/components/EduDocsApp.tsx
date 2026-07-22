@@ -16,6 +16,20 @@ const EXAMPLES = [
   "Por quanto tempo meus dados são armazenados?",
   "O que acontece se eu cancelar depois do prazo de arrependimento?",
 ];
+const USER_STEPS = [
+  {
+    title: "Escolha ou escreva",
+    description: "Use uma pergunta pronta ou digite com suas palavras.",
+  },
+  {
+    title: "Leia a resposta",
+    description: "A resposta aparece em linguagem direta, sem precisar conhecer termos técnicos.",
+  },
+  {
+    title: "Confira a origem",
+    description: "Quando houver base nos documentos, mostramos de onde a informação saiu.",
+  },
+];
 
 type LoadState = "loading" | "ready" | "unavailable";
 
@@ -214,7 +228,7 @@ export function EduDocsApp() {
           <div>
             <p className="eyebrow">
               <span aria-hidden="true" className="status-dot bg-pine" />
-              Local-first · RAG educacional
+              Assistente de consulta
             </p>
           </div>
           <StatusPill availability={availability} compact />
@@ -225,34 +239,34 @@ export function EduDocsApp() {
               EduDocs AI
             </p>
             <h1 className="hero-title">
-              Documentos claros.
+              Pergunte aos documentos.
               <br />
-              <em>Fontes à vista.</em>
+              <em>Entenda a resposta.</em>
             </h1>
           </div>
           <div>
             <p className="hero-copy">
-              Assistente inteligente para consulta de documentos educacionais. Pergunte ao corpus
-              fictício e receba respostas com documento, versão, página, seção e trecho.
+              Escreva sua dúvida como falaria com uma pessoa. O EduDocs procura nos documentos
+              disponíveis e mostra uma resposta simples, com a origem da informação quando houver base.
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
               <span className="border border-pine/20 bg-pine/[0.035] px-3 py-2 text-[0.62rem] uppercase tracking-[0.06em] text-paper/75">
-                FastAPI
+                Perguntas prontas
               </span>
               <span className="border border-pine/20 bg-pine/[0.035] px-3 py-2 text-[0.62rem] uppercase tracking-[0.06em] text-paper/75">
-                LangGraph
+                Resposta direta
               </span>
               <span className="border border-pine/20 bg-pine/[0.035] px-3 py-2 text-[0.62rem] uppercase tracking-[0.06em] text-paper/75">
-                RAG
+                Fonte conferível
               </span>
               <span className="border border-pine/20 bg-pine/[0.035] px-3 py-2 text-[0.62rem] uppercase tracking-[0.06em] text-paper/75">
-                Fontes
+                Sem cadastro
               </span>
             </div>
             <div className="my-7 h-px bg-gradient-to-r from-rose to-transparent" />
             <small className="text-muted">
-              Use com <span className="font-semibold text-pine">responsabilidade</span>: o corpus
-              é fictício e serve apenas para demonstração.
+              Os documentos são fictícios e servem apenas para demonstração. Revise a fonte antes de
+              tomar qualquer decisão.
             </small>
           </div>
         </div>
@@ -277,9 +291,9 @@ export function EduDocsApp() {
       </nav>
 
       <aside className="responsible-use" aria-label="Avisos de uso responsável">
-        <span>Responde apenas quando há evidência no corpus.</span>
-        <span>Exibe fontes para conferência humana.</span>
-        <span>Não persiste histórico nem aceita uploads públicos.</span>
+        <span>Se não encontrar a informação, o assistente avisa.</span>
+        <span>Quando responder, ele mostra de onde tirou a informação.</span>
+        <span>A conversa fica somente nesta sessão do navegador.</span>
       </aside>
 
       <div className="grid gap-6 py-10 lg:grid-cols-[minmax(0,1fr)_390px]">
@@ -287,15 +301,14 @@ export function EduDocsApp() {
           <section className="border-b border-line pb-8">
             <div className="grid gap-8 lg:grid-cols-[1fr_310px]">
               <div>
-                <p className="eyebrow">
-                  Consulta fundamentada
-                </p>
+                <p className="eyebrow">Comece por aqui</p>
                 <h2 className="mt-3 font-serif text-[clamp(2.6rem,5vw,4.8rem)] font-normal leading-none tracking-normal text-paper">
                   Pergunte sobre normas, certificados, reembolsos, matrícula e privacidade.
                 </h2>
                 <p className="mt-6 max-w-3xl text-base leading-7 text-paper/75">
-                  O agente consulta PDFs do corpus, responde somente quando encontra sustentação
-                  documental e mostra as fontes usadas por documento, versão, página, seção e trecho.
+                  Você não precisa saber o nome do documento nem escrever de um jeito especial.
+                  Basta dizer o que quer descobrir. Se houver informação disponível, a resposta vem
+                  acompanhada da fonte para conferência.
                 </p>
                 <p className="mt-5 border border-amber/30 bg-amber/[0.035] px-4 py-3 text-sm text-paper/80">
                   Os documentos utilizados neste projeto são fictícios e foram criados
@@ -309,10 +322,13 @@ export function EduDocsApp() {
           <section aria-labelledby="examples-title" className="panel-soft p-5">
             <div className="section-heading">
               <div>
-                <span className="eyebrow">Atalhos do corpus</span>
+                <span className="eyebrow">Um clique para começar</span>
                 <h2 id="examples-title" className="font-serif text-3xl font-normal text-paper">
                   Exemplos de perguntas
                 </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+                  Clique em uma pergunta pronta para preencher o campo. Você pode editar o texto antes de enviar.
+                </p>
               </div>
               <span className="section-number">01</span>
             </div>
@@ -339,12 +355,12 @@ export function EduDocsApp() {
             <div className="border-b border-line p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <span className="eyebrow">Agente em sessão</span>
+                  <span className="eyebrow">Tire sua dúvida</span>
                   <h2 id="conversation-title" className="mt-1 font-serif text-4xl font-normal text-paper">
                     Conversa
                   </h2>
                   <p className="mt-2 text-sm text-muted">
-                    O histórico permanece apenas nesta sessão do navegador.
+                    Faça uma pergunta por vez. O histórico permanece apenas nesta sessão do navegador.
                   </p>
                 </div>
                 <button
@@ -360,8 +376,18 @@ export function EduDocsApp() {
 
             <div className="max-h-[620px] space-y-4 overflow-y-auto p-5" ref={conversationRef}>
               {messages.length === 0 ? (
-                <div className="border border-dashed border-line bg-ink/50 p-5 text-sm text-muted">
-                  Escolha um exemplo ou escreva uma pergunta sobre o corpus educacional.
+                <div className="empty-guide">
+                  <p className="eyebrow">Nenhuma pergunta enviada ainda</p>
+                  <h3>Escolha um exemplo ou escreva sua dúvida.</h3>
+                  <div className="mt-5 grid gap-3 md:grid-cols-3">
+                    {USER_STEPS.map((step, index) => (
+                      <div className="guide-step" key={step.title}>
+                        <span>{String(index + 1).padStart(2, "0")}</span>
+                        <strong>{step.title}</strong>
+                        <p>{step.description}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 messages.map((message) => (
@@ -374,7 +400,7 @@ export function EduDocsApp() {
               )}
               {isSending ? (
                 <div className="border border-line bg-panelSoft p-4 text-sm text-paper/70">
-                  Consultando documentos e validando fontes...
+                  Buscando nos documentos disponíveis...
                 </div>
               ) : null}
             </div>
@@ -397,7 +423,7 @@ export function EduDocsApp() {
               />
               <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted" id="question-help">
-                  Perguntas vazias ou acima do limite não são enviadas.
+                  Escreva uma pergunta curta e objetiva. Não envie dados pessoais.
                 </p>
                 <p
                   className={question.length > MAX_QUESTION_LENGTH ? "text-sm text-rose" : "text-sm text-muted"}
@@ -424,27 +450,27 @@ export function EduDocsApp() {
           <DocumentsPanel documents={documents} state={availability.documents} />
           <SourcesPanel message={latestAssistant} />
           <section className="panel-soft p-5" id="how-it-works">
-            <span className="eyebrow">Fluxo RAG</span>
+            <span className="eyebrow">O que acontece</span>
             <h2 className="mt-1 font-serif text-3xl font-normal text-paper">Como funciona</h2>
             <ol className="mt-4 space-y-3 text-sm leading-6 text-paper/75">
-              <li>1. A pergunta é enviada para a API FastAPI.</li>
-              <li>2. O grafo LangGraph recupera evidências do índice local.</li>
-              <li>3. A resposta é retornada com fontes ou uma recusa quando falta evidência.</li>
+              <li>1. Você envia uma pergunta em linguagem comum.</li>
+              <li>2. O assistente procura a resposta nos documentos disponíveis.</li>
+              <li>3. Se encontrar base, ele responde e mostra a fonte. Se não encontrar, ele avisa.</li>
             </ol>
           </section>
           <section className="panel-soft border-rose/30 bg-[radial-gradient(circle_at_92%_5%,rgba(255,129,111,0.12),transparent_30%),#131c19] p-5">
             <span className="eyebrow text-rose">Uso responsável</span>
             <h2 className="mt-1 font-serif text-3xl font-normal text-paper">Avisos e limitações</h2>
             <p className="mt-3 text-sm leading-6 text-paper/75">
-              O corpus é fictício, não há autenticação, upload público, histórico persistente ou
-              consulta a documentos fora do conjunto disponível nesta demonstração.
+              Os documentos são fictícios. Não há login, envio de arquivos, histórico permanente ou
+              consulta fora do conjunto disponível nesta demonstração.
             </p>
           </section>
         </aside>
       </div>
 
       <footer className="flex min-h-28 flex-col justify-center gap-2 border-t border-line py-6 text-[0.68rem] uppercase tracking-[0.1em] text-muted sm:flex-row sm:items-center sm:justify-between">
-        <span>EduDocs AI · local-first</span>
+        <span>EduDocs AI · consulta guiada</span>
         <span>Projeto educacional com documentos fictícios.</span>
       </footer>
       </div>
@@ -488,10 +514,10 @@ function StatusPanel({
   return (
     <div className="panel-soft p-5">
       <span className="eyebrow">Estado local</span>
-      <h2 className="mt-1 font-serif text-2xl font-normal text-paper">Disponibilidade</h2>
+      <h2 className="mt-1 font-serif text-2xl font-normal text-paper">Pronto para usar?</h2>
       <dl className="mt-5 space-y-3 text-sm">
-        <StatusRow label="API" state={availability.health} />
-        <StatusRow label="Corpus" state={availability.corpus} detail={chunksText(availability.chunks)} />
+        <StatusRow label="Serviço" state={availability.health} />
+        <StatusRow label="Base de consulta" state={availability.corpus} detail={chunksText(availability.chunks)} />
         <StatusRow label="Documentos" state={availability.documents} detail={`${documents.length} listados`} />
       </dl>
       {availability.message ? (
@@ -531,7 +557,9 @@ function DocumentsPanel({
           <h2 id="documents-title" className="mt-1 font-serif text-3xl font-normal text-paper">
             Documentos disponíveis
           </h2>
-          <p className="mt-2 text-sm text-muted">{documents.length} documentos no contrato público.</p>
+          <p className="mt-2 text-sm text-muted">
+            {documents.length} materiais que o assistente pode consultar.
+          </p>
         </div>
         <span className="border border-line bg-ink px-3 py-1 text-sm font-semibold text-pine">
           {stateLabel(state)}
@@ -547,7 +575,7 @@ function DocumentsPanel({
             <li className="border border-line bg-panel p-3" key={document.id}>
               <h3 className="font-semibold text-paper">{document.title}</h3>
               <p className="mt-1 text-sm text-paper/75">
-                Versão {document.version} · Categoria {document.category}
+                Versão {document.version} · Tema {document.category}
               </p>
               <p className="mt-1 text-xs uppercase tracking-wide text-muted">
                 {document.language} · vigente desde {document.effective_date}
@@ -610,13 +638,13 @@ function SourcesPanel({ message }: Readonly<{ message?: ConversationMessage }>) 
   const sources = message?.sources ?? [];
   return (
     <section aria-labelledby="sources-title" className="panel-soft p-5">
-      <span className="eyebrow">Evidências</span>
+      <span className="eyebrow">Conferência</span>
       <h2 id="sources-title" className="mt-1 font-serif text-3xl font-normal text-paper">
-        Fontes da resposta
+        De onde veio a resposta
       </h2>
       {sources.length === 0 ? (
         <p className="mt-3 text-sm leading-6 text-paper/75">
-          As fontes aparecem aqui quando a API retorna uma resposta fundamentada.
+          Quando a resposta tiver base nos documentos, as fontes aparecem aqui em linguagem simples.
         </p>
       ) : (
         <SourceList sources={sources} compact />
@@ -672,15 +700,15 @@ function SubmitHint({
   documents,
 }: Readonly<{ availability: Availability; documents: DocumentResponse[] }>) {
   if (availability.health !== "ready") {
-    return <p className="text-sm text-rose">API indisponível para envio.</p>;
+    return <p className="text-sm text-rose">O serviço ainda não está disponível para envio.</p>;
   }
   if (availability.corpus !== "ready") {
-    return <p className="text-sm text-amber">Corpus ainda não está pronto.</p>;
+    return <p className="text-sm text-amber">A base de documentos ainda está sendo preparada.</p>;
   }
   if (documents.length === 0) {
-    return <p className="text-sm text-amber">Não há documentos públicos disponíveis.</p>;
+    return <p className="text-sm text-amber">Ainda não há documentos disponíveis para consulta.</p>;
   }
-  return <p className="text-sm text-muted">Pronto para consultar o corpus.</p>;
+  return <p className="text-sm text-muted">Tudo pronto. Você já pode enviar sua pergunta.</p>;
 }
 
 function responseToMessage(response: ChatResponse): ConversationMessage {
@@ -781,5 +809,5 @@ function stateLabel(state: LoadState): string {
 }
 
 function chunksText(chunks?: number): string | undefined {
-  return chunks === undefined ? undefined : `${chunks} chunks`;
+  return chunks === undefined ? undefined : `${chunks} trechos`;
 }
