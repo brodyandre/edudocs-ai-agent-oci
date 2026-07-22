@@ -1,0 +1,108 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: edudocs-ai-api:local
+    environment:
+      EDUDOCS_ROOT_DIR: /app
+      EDUDOCS_MANIFEST_PATH: corpus/manifest.json
+      EDUDOCS_DOCUMENTS_DIR: corpus/documents
+      EDUDOCS_INDEX_DIR: corpus/index
+      EDUDOCS_EMBEDDING_PROVIDER: fake
+      EDUDOCS_LLM_PROVIDER: fake
+    expose:
+      - "8000"
+    volumes:
+      - edudocs-index:/app/corpus/index
+    networks:
+      - edudocs
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)); raise SystemExit(0 if data.get('status') == 'ok' else 1)",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ""
+    image: edudocs-ai-web:local
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      PORT: "3000"
+    expose:
+      - "3000"
+    networks:
+      - edudocs
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const port=process.env.PORT||3000; fetch('http://127.0.0.1:'+port+'/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  nginx:
+    image: nginxinc/nginx-unprivileged:1.27.4-alpine
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - edudocs
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+networks:
+  edudocs:
+    driver: bridge
+    internal: false
+
+volumes:
+  edudocs-index:

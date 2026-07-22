@@ -16,7 +16,7 @@ Ficam fora do MVP autenticação, OCR, upload público, Kubernetes, banco relaci
 
 O fluxo conecta uma interface Next.js a uma API FastAPI. A API aciona um grafo LangGraph, que consulta um recuperador híbrido sobre índice local e metadados. Quando houver evidências suficientes, a resposta é gerada por um provedor de LLM isolado por interface; em desenvolvimento e testes, o provider falso determinístico evita dependência de rede ou segredos.
 
-## Tecnologias planejadas
+## Tecnologias
 
 - Next.js, React, TypeScript e Tailwind CSS para a interface.
 - Python e FastAPI para a API.
@@ -25,8 +25,8 @@ O fluxo conecta uma interface Next.js a uma API FastAPI. A API aciona um grafo L
 - PyMuPDF para extração de PDFs.
 - Embeddings multilíngues locais configuráveis.
 - Busca semântica persistida e busca lexical com TF-IDF ou BM25.
-- Docker Compose para execução local.
-- Terraform, Nginx e OCI Compute ARM64 para deploy planejado.
+- Docker Compose e Nginx para execução local integrada.
+- Terraform e OCI Compute ARM64 para deploy planejado.
 
 ## Status atual
 
@@ -43,6 +43,19 @@ npm --prefix apps/web run dev
 
 Consulte [apps/web/README.md](apps/web/README.md) para instalação, variáveis, validações, integração e limitações.
 
+## Execução integrada com Docker
+
+O ambiente Docker local sobe API, web e Nginx em uma rede interna. A única porta publicada por padrão é `8080`, servida pelo Nginx.
+
+```bash
+make build
+make up
+make smoke
+make down
+```
+
+A aplicação integrada fica em `http://localhost:8080`. Consulte [docs/local-development.md](docs/local-development.md) para detalhes de ambiente virtual, índice, Compose local, Compose de produção e smoke test.
+
 ## Roadmap resumido
 
 1. Documentar arquitetura, pipeline RAG, segurança e plano de entregas.
@@ -50,7 +63,7 @@ Consulte [apps/web/README.md](apps/web/README.md) para instalação, variáveis,
 3. Implementar ingestão local de PDFs.
 4. Implementar recuperador híbrido e provedor falso determinístico para testes.
 5. Implementar API FastAPI e interface Next.js.
-6. Preparar Docker Compose, Terraform e deploy em OCI.
+6. Preparar Terraform e deploy em OCI.
 7. Registrar evidências finais, exemplos e captura de tela.
 
 ## Documentos técnicos

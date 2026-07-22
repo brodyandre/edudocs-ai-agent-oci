@@ -58,30 +58,49 @@ Além do prompt, o agente valida fontes a partir de chunks recuperados e recusa 
 
 Dependências devem ser mínimas, fixadas quando apropriado e revisadas antes da entrega. Ferramentas de auditoria podem ser usadas sem prometer ausência total de vulnerabilidades.
 
-## 14. Imagens Docker
+## 14. Auditoria npm
+
+Auditoria executada em 22 de julho de 2026:
+
+- `npm --prefix apps/web audit --omit=dev`: 2 vulnerabilidades moderadas em dependência de produção.
+- `npm --prefix apps/web audit`: 2 vulnerabilidades moderadas no conjunto completo.
+
+Achado:
+
+- Pacote vulnerável: `postcss <8.5.10`.
+- Cadeia: `next -> postcss`, em `node_modules/next/node_modules/postcss`.
+- Severidade: moderada.
+- Advisory: `GHSA-qx2v-qp2m-jg93`, XSS por escape insuficiente de `</style>` na saída CSS.
+- Escopo: produção e desenvolvimento, porque `next` é dependência de produção da web.
+- Correção indicada pelo npm: `npm audit fix --force`.
+- Impacto da correção indicada: quebra compatibilidade, pois o npm informa instalação de `next@9.3.3`.
+
+Decisão: aceitar temporariamente o achado sem aplicar `npm audit fix --force`. A correção automática sugerida pelo npm é quebradora e incompatível com a aplicação Next.js atual. A mitigação registrada é manter o override explícito de `postcss` no `package.json`, acompanhar atualização compatível do Next.js e reexecutar a auditoria antes de publicação real de imagem.
+
+## 15. Imagens Docker
 
 As imagens planejadas devem usar bases oficiais ou confiáveis, camadas enxutas e versões compatíveis com ARM64. Segredos não devem ser copiados para imagens.
 
-## 15. Usuário não root
+## 16. Usuário não root
 
 Containers de aplicação devem executar com usuário não root sempre que possível. Diretórios de escrita devem ter permissões específicas para o processo da aplicação.
 
-## 16. Regras de rede OCI
+## 17. Regras de rede OCI
 
 O deploy planejado deve expor apenas portas necessárias, como HTTP/HTTPS pelo Nginx e SSH restrito. A API interna não deve ser exposta diretamente se puder ficar atrás do proxy.
 
-## 17. SSH restrito
+## 18. SSH restrito
 
 Acesso SSH à instância OCI deve ser limitado por chave, usuário apropriado e origem controlada. Senhas de SSH não devem ser usadas.
 
-## 18. HTTPS
+## 19. HTTPS
 
 O acesso público planejado deve usar HTTPS. A emissão e renovação de certificados devem ser tratadas na etapa de deploy, sem inserir chaves privadas no repositório.
 
-## 19. Atualizações e correções
+## 20. Atualizações e correções
 
 Dependências, imagens e pacotes do sistema devem receber atualizações compatíveis com a estabilidade do projeto. Correções de segurança relevantes devem ter prioridade.
 
-## 20. Limitações do MVP
+## 21. Limitações do MVP
 
 O MVP não implementa autenticação, multiusuário, cofre de segredos integrado, WAF, auditoria completa, criptografia customizada de índice ou políticas corporativas avançadas.

@@ -39,6 +39,8 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 
 O valor padrão do cliente também é `http://localhost:8000`.
 
+No modo integrado com Nginx, `NEXT_PUBLIC_API_BASE_URL` deve ficar vazio. Assim o navegador chama `/health`, `/ready`, `/api/documents` e `/api/chat` no mesmo host de `http://localhost:8080`, sem depender de `localhost:8000` no bundle.
+
 ## Desenvolvimento
 
 ```bash
@@ -72,6 +74,8 @@ Os testes cobrem o cliente HTTP, estados de disponibilidade, envio de perguntas,
 ```bash
 npm --prefix apps/web run build
 ```
+
+O `next.config.mjs` usa `output: "standalone"` para gerar a saída própria de container. O Dockerfile da web executa o build com `NEXT_PUBLIC_API_BASE_URL` vazio e roda como usuário não-root na porta interna `3000`.
 
 ## Integração com a API
 

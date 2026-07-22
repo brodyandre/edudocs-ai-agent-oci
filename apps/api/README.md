@@ -2,7 +2,7 @@
 
 Esta API é a base funcional para ingestão, indexação, recuperação e resposta fundamentada sobre o corpus fictício da EduDocs Academy. A entrega atual implementa o pipeline PDF -> páginas -> texto normalizado -> chunks -> embeddings -> índice persistido, além de um agente RAG controlado por grafo e endpoints HTTP.
 
-Não há histórico persistente, autenticação, upload de arquivos ou interface web nesta etapa.
+Não há histórico persistente, autenticação ou upload de arquivos nesta etapa. A interface web fica em `apps/web` e consome os contratos HTTP desta API.
 
 ## Ambiente virtual
 
@@ -103,6 +103,20 @@ curl -s \
 ```
 
 A resposta contém `answer`, `answerable`, `sources`, `request_id` e `latency_ms`. Quando não há evidência suficiente, a resposta usa a mensagem padrão de recusa e retorna `sources` vazio.
+
+## Execução em container
+
+O Dockerfile da API usa build multi-stage, roda como usuário não-root e copia o corpus versionado para a imagem. O índice não é versionado nem embutido: no Compose ele fica no volume persistente `edudocs-index`, em `corpus/index`.
+
+No início do container, o entrypoint valida o corpus, valida o índice ativo e reconstrói o índice somente quando ele está ausente ou incompatível. A publicação continua atômica, preservando o índice anterior em caso de falha de build.
+
+```bash
+docker compose build api
+docker compose up -d api
+docker compose logs api
+```
+
+Os provedores padrão no container local são `fake`, sem rede e sem segredo. Para usar Groq, injete as variáveis no ambiente de execução; não grave chaves em Dockerfile, Compose ou imagem.
 
 ## Fluxo do agente
 

@@ -1,0 +1,84 @@
+# Version control and local metadata
+.git/
+.github/
+.codex/
+.agents/
+
+# Environments and secrets
+.env
+.env.*
+!**/.env.example
+*.pem
+*.key
+*.p8
+*.crt
+*.cer
+*.kubeconfig
+oci_config
+oci_api_key*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Node.js and frontend outputs
+node_modules/
+apps/web/node_modules/
+.next/
+apps/web/.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Generated data, caches and local models
+corpus/index/*
+!corpus/index/.gitkeep
+.cache/
+cache/
+models/
+.models/
+*.faiss
+*.sqlite
+*.db
+
+# Terraform and local infrastructure state
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.plan
+crash.log
+crash.*.log
+
+# Logs, temporary files and generated evidence
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+*.bak
+docs/evidence/
+assets/screenshots/
+
+# Editors and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
