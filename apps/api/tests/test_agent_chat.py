@@ -142,6 +142,25 @@ def make_service(
     return RAGAgentService(settings, llm_provider=FakeProvider(mode))
 
 
+def initial_state(question: str, request_id: str) -> dict[str, object]:
+    return {
+        "question": question,
+        "request_id": request_id,
+        "retrieval_attempt": 0,
+        "retrieved_chunks": [],
+        "validated_sources": [],
+        "answerable": False,
+    }
+
+
+def streamed_nodes(service: RAGAgentService, question: str, request_id: str) -> list[str]:
+    events = service.graph.stream(
+        initial_state(question, request_id),
+        {"recursion_limit": (service.settings.max_retrieval_attempts * 4) + 8},
+    )
+    return [next(iter(event)) for event in events]
+
+
 @pytest.mark.anyio
 async def test_pergunta_direta_respondível(agent_settings: Settings) -> None:
     result = await make_service(agent_settings).answer("Como solicito meu certificado?", "req-1")
@@ -204,33 +223,134 @@ async def test_prompt_injection_na_evidencia_nao_altera_comportamento(
 
 @pytest.mark.anyio
 async def test_segunda_recuperacao_bem_sucedida(agent_settings: Settings) -> None:
-    state = {
-        "question": "Como peço meu diploma?",
-        "request_id": "req-retry-ok",
-        "retrieval_attempt": 0,
-        "retrieved_chunks": [],
-        "validated_sources": [],
-        "answerable": False,
-    }
-    final = await make_service(agent_settings)._run_graph_nodes(state)
-    assert final["answerable"] is True
-    assert final["retrieval_attempt"] == 2
+    result = await make_service(agent_settings).answer("Como peço meu diploma?", "req-retry-ok")
+    assert result.answerable is True
+    assert result.sources
 
 
 @pytest.mark.anyio
 async def test_segunda_recuperacao_ainda_insuficiente(agent_settings: Settings) -> None:
-    state = {
-        "question": "Existe transporte gratuito?",
-        "request_id": "req-retry-fail",
-        "retrieval_attempt": 0,
-        "retrieved_chunks": [],
-        "validated_sources": [],
-        "answerable": False,
-    }
-    final = await make_service(agent_settings)._run_graph_nodes(state)
-    assert final["answerable"] is False
-    assert final["retrieval_attempt"] == 2
-    assert final["generated_answer"] == INSUFFICIENT_MESSAGE
+    result = await make_service(agent_settings).answer(
+        "Existe transporte gratuito?",
+        "req-retry-fail",
+    )
+    assert result.answerable is False
+    assert result.answer == INSUFFICIENT_MESSAGE
+    assert result.sources == []
+
+
+@pytest.mark.anyio
+async def test_servico_usa_grafo_compilado_como_runtime(agent_settings: Settings) -> None:
+    class SpyGraph:
+        def __init__(self) -> None:
+            self.calls: list[tuple[dict[str, object], dict[str, object]]] = []
+
+        def invoke(
+            self,
+            state: dict[str, object],
+            config: dict[str, object],
+        ) -> dict[str, object]:
+            self.calls.append((state, config))
+            return {
+                **state,
+                "answerable": True,
+                "generated_answer": "Resposta fundamentada.",
+                "validated_sources": [{"document_id": "guia-de-certificados"}],
+            }
+
+    service = make_service(agent_settings)
+    spy_graph = SpyGraph()
+    service.graph = spy_graph  # type: ignore[assignment]
+
+    result = await service.answer("Como solicito certificado?", "req-runtime")
+
+    assert not hasattr(service, "_run_graph_nodes")
+    assert result.answerable is True
+    assert len(spy_graph.calls) == 1
+    state, config = spy_graph.calls[0]
+    assert state["question"] == "Como solicito certificado?"
+    assert state["request_id"] == "req-runtime"
+    assert config["recursion_limit"] == 16
+
+
+def test_grafo_compilado_percorre_trajetoria_respondivel(agent_settings: Settings) -> None:
+    service = make_service(agent_settings)
+
+    nodes = streamed_nodes(service, "Como solicito meu certificado?", "req-stream-ok")
+
+    assert nodes == [
+        "validar_pergunta",
+        "preparar_consulta",
+        "recuperar_evidencias",
+        "avaliar_suficiencia",
+        "gerar_resposta",
+        "validar_citacoes",
+        "finalizar",
+    ]
+
+
+def test_grafo_compilado_percorre_trajetoria_com_retry_e_fallback(
+    agent_settings: Settings,
+) -> None:
+    service = make_service(agent_settings)
+
+    nodes = streamed_nodes(service, "Existe transporte gratuito?", "req-stream-fail")
+
+    assert nodes == [
+        "validar_pergunta",
+        "preparar_consulta",
+        "recuperar_evidencias",
+        "avaliar_suficiencia",
+        "reformular_consulta",
+        "recuperar_evidencias",
+        "avaliar_suficiencia",
+        "evidencia_insuficiente",
+        "finalizar",
+    ]
+
+
+@pytest.mark.anyio
+async def test_grafo_limita_recuperacao_a_duas_tentativas(
+    agent_settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service = make_service(agent_settings)
+    calls = 0
+    original_search = service.deps.index.search
+
+    def counting_search(*args: object, **kwargs: object) -> list[SearchResult]:
+        nonlocal calls
+        calls += 1
+        return original_search(*args, **kwargs)
+
+    monkeypatch.setattr(service.deps.index, "search", counting_search)
+
+    result = await service.answer("Existe transporte gratuito?", "req-max-retries")
+
+    assert result.answerable is False
+    assert calls == 2
+
+
+@pytest.mark.anyio
+async def test_provider_e_chamado_uma_vez_quando_ha_evidencia(
+    agent_settings: Settings,
+) -> None:
+    class CountingProvider(FakeProvider):
+        def __init__(self) -> None:
+            super().__init__(FakeProviderMode.SUCCESS)
+            self.calls = 0
+
+        async def generate(self, *args: object, **kwargs: object) -> LLMResult:
+            self.calls += 1
+            return await super().generate(*args, **kwargs)  # type: ignore[arg-type]
+
+    provider = CountingProvider()
+    service = RAGAgentService(agent_settings, llm_provider=provider)
+
+    result = await service.answer("Como solicito meu certificado?", "req-provider-once")
+
+    assert result.answerable is True
+    assert provider.calls == 1
 
 
 def test_deduplicacao_e_diversidade() -> None:

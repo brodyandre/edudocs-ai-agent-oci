@@ -6,18 +6,7 @@ import uuid
 from dataclasses import dataclass
 
 from app.agents.graph import build_graph
-from app.agents.nodes import (
-    INSUFFICIENT_MESSAGE,
-    AgentDependencies,
-    evaluate_sufficiency,
-    generate_answer,
-    insufficient_evidence,
-    prepare_query,
-    reformulate_query,
-    retrieve_evidence,
-    validate_citations_node,
-    validate_question,
-)
+from app.agents.nodes import INSUFFICIENT_MESSAGE, AgentDependencies
 from app.agents.state import AgentState
 from app.core.config import Settings
 from app.documents.manifest import load_manifest
@@ -73,28 +62,6 @@ class RAGAgentService:
         )
         self.graph = build_graph(self.deps)
 
-    async def _run_graph_nodes(self, state: AgentState) -> AgentState:
-        state.update(validate_question(state, self.deps))
-        if state.get("error"):
-            state.update(insufficient_evidence(state, self.deps))
-            return state
-
-        state.update(prepare_query(state, self.deps))
-        while True:
-            state.update(retrieve_evidence(state, self.deps))
-            state.update(evaluate_sufficiency(state, self.deps))
-            if state.get("sufficient_context"):
-                state.update(await generate_answer(state, self.deps))
-                if not state.get("answerable"):
-                    state.update(insufficient_evidence(state, self.deps))
-                    return state
-                state.update(validate_citations_node(state, self.deps))
-                return state
-            if int(state.get("retrieval_attempt", 0)) >= self.settings.max_retrieval_attempts:
-                state.update(insufficient_evidence(state, self.deps))
-                return state
-            state.update(reformulate_query(state, self.deps))
-
     async def answer(self, question: str, request_id: str) -> ChatResult:
         started = time.perf_counter()
         state: AgentState = {
@@ -105,7 +72,10 @@ class RAGAgentService:
             "validated_sources": [],
             "answerable": False,
         }
-        final_state = await self._run_graph_nodes(state)
+        final_state = self.graph.invoke(
+            state,
+            {"recursion_limit": (self.settings.max_retrieval_attempts * 4) + 8},
+        )
         answerable = bool(final_state.get("answerable", False))
         answer = str(final_state.get("generated_answer") or INSUFFICIENT_MESSAGE)
         sources = list(final_state.get("validated_sources", [])) if answerable else []

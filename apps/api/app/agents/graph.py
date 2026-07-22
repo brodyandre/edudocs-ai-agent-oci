@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import threading
 from collections.abc import Awaitable, Callable
 
 from langgraph.graph import StateGraph
@@ -21,8 +23,8 @@ from app.agents.state import AgentState
 def _wrap_sync(
     func: Callable[[AgentState, AgentDependencies], AgentState],
     deps: AgentDependencies,
-) -> Callable[[AgentState], Awaitable[AgentState]]:
-    async def wrapped(state: AgentState) -> AgentState:
+) -> Callable[[AgentState], AgentState]:
+    def wrapped(state: AgentState) -> AgentState:
         return func(state, deps)
 
     return wrapped
@@ -31,20 +33,47 @@ def _wrap_sync(
 def _wrap_async(
     func: Callable[[AgentState, AgentDependencies], Awaitable[AgentState]],
     deps: AgentDependencies,
-) -> Callable[[AgentState], Awaitable[AgentState]]:
-    async def wrapped(state: AgentState) -> AgentState:
-        return await func(state, deps)
+) -> Callable[[AgentState], AgentState]:
+    def wrapped(state: AgentState) -> AgentState:
+        return _run_awaitable(func(state, deps))
 
     return wrapped
 
 
-async def after_validation(state: AgentState) -> str:
+def _run_awaitable(awaitable: Awaitable[AgentState]) -> AgentState:
+    # LangGraph 0.2.x executes this compiled graph through the synchronous API.
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(awaitable)
+
+    result: AgentState | None = None
+    error: BaseException | None = None
+
+    def run() -> None:
+        nonlocal error, result
+        try:
+            result = asyncio.run(awaitable)
+        except BaseException as exc:
+            error = exc
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    thread.join()
+    if error is not None:
+        raise error
+    if result is None:
+        raise RuntimeError("Nó assíncrono não retornou estado.")
+    return result
+
+
+def after_validation(state: AgentState) -> str:
     if state.get("error"):
         return "insufficient"
     return "prepare"
 
 
-async def after_evaluation(state: AgentState) -> str:
+def after_evaluation(state: AgentState) -> str:
     if state.get("sufficient_context"):
         return "generate"
     if int(state.get("retrieval_attempt", 0)) < 2:
@@ -52,7 +81,13 @@ async def after_evaluation(state: AgentState) -> str:
     return "insufficient"
 
 
-async def finalize(state: AgentState) -> AgentState:
+def after_citation_validation(state: AgentState) -> str:
+    if state.get("answerable") and state.get("validated_sources"):
+        return "finish"
+    return "insufficient"
+
+
+def finalize(state: AgentState) -> AgentState:
     return state
 
 
@@ -87,7 +122,11 @@ def build_graph(deps: AgentDependencies):
     )
     graph.add_edge("reformular_consulta", "recuperar_evidencias")
     graph.add_edge("gerar_resposta", "validar_citacoes")
-    graph.add_edge("validar_citacoes", "finalizar")
+    graph.add_conditional_edges(
+        "validar_citacoes",
+        after_citation_validation,
+        {"finish": "finalizar", "insufficient": "evidencia_insuficiente"},
+    )
     graph.add_edge("evidencia_insuficiente", "finalizar")
     graph.set_finish_point("finalizar")
     return graph.compile()

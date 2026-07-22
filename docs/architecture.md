@@ -95,7 +95,7 @@ flowchart LR
 
 1. O usuário envia uma pergunta pela interface planejada.
 2. A interface chama a API FastAPI.
-3. A API cria uma execução do grafo LangGraph.
+3. A API cria uma execução do grafo LangGraph compilado, que é o runtime operacional do agente.
 4. O grafo normaliza a pergunta e chama o recuperador híbrido.
 5. O recuperador consulta índice vetorial e busca lexical.
 6. Os resultados são fundidos, deduplicados e avaliados.

@@ -78,6 +78,8 @@ Se o primeiro conjunto de evidências for fraco, o grafo pode reformular a consu
 
 O limite atual é de duas recuperações por pergunta. A reformulação usa expansão controlada de sinônimos do domínio e não depende de LLM.
 
+O endpoint de chat usa o `CompiledStateGraph` como fonte única de execução: o serviço monta o estado inicial e chama `graph.invoke`, enquanto decisões de rota, retry, suficiência, geração, validação de citações e fallback ficam dentro do grafo.
+
 ## 16. Geração da resposta
 
 A geração deve receber pergunta, trechos selecionados e instruções para responder apenas com base nas evidências. O provedor de LLM será chamado por uma interface isolada.

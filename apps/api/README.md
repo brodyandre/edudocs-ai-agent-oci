@@ -152,8 +152,9 @@ As duas primeiras devem retornar fontes. As duas últimas devem recusar ou não 
 
 ## Limitações
 
-- O runner HTTP usa a mesma sequência de nós modelada no grafo e mantém limite explícito de duas recuperações.
+- O endpoint `/api/chat` executa o grafo LangGraph compilado via `CompiledStateGraph.invoke`; o serviço HTTP não possui runner manual paralelo.
 - A busca é inicial e combina similaridade semântica local com TF-IDF.
 - O provedor real de `sentence-transformers` é preguiçoso e depende de instalação opcional.
 - O provedor Groq depende de `GROQ_API_KEY` no ambiente e não é executado na suíte automatizada.
+- A suíte emite um `LangChainPendingDeprecationWarning` originado em `langgraph.checkpoint.base`, dependência transitiva fora do código do projeto.
 - O índice gerado localmente não deve ser commitado.

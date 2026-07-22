@@ -232,6 +232,13 @@ async def generate_answer(state: AgentState, deps: AgentDependencies) -> AgentSt
 
 
 def validate_citations_node(state: AgentState, deps: AgentDependencies) -> AgentState:
+    if not state.get("answerable"):
+        return {
+            "answerable": False,
+            "generated_answer": INSUFFICIENT_MESSAGE,
+            "validated_sources": [],
+        }
+
     evidences = deps.evidence_store.get(state["request_id"], [])
     allowed = set(state.get("retrieved_chunks", []))
     sources = validate_sources(
