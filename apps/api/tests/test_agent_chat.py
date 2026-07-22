@@ -276,7 +276,11 @@ async def test_servico_usa_grafo_compilado_como_runtime(agent_settings: Settings
 def test_grafo_compilado_percorre_trajetoria_respondivel(agent_settings: Settings) -> None:
     service = make_service(agent_settings)
 
-    nodes = streamed_nodes(service, "Como solicito meu certificado?", "req-stream-ok")
+    nodes = streamed_nodes(
+        service,
+        "Qual é o prazo de emissão do certificado digital?",
+        "req-stream-ok",
+    )
 
     assert nodes == [
         "validar_pergunta",

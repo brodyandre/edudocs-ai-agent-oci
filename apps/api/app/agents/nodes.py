@@ -21,6 +21,11 @@ INJECTION_PATTERNS = [
     re.compile(r"\brevele\b.+\b(prompt|segredo|chave|token)\b", re.IGNORECASE),
     re.compile(r"\buse conhecimento externo\b", re.IGNORECASE),
     re.compile(r"\bfinja\b.+\bsem evidências|sem evidencias\b", re.IGNORECASE),
+    re.compile(
+        r"\buse\b.+\b(regras|pdf)\b.+\binstru(?:ção|cao) do sistema\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\baprovad[oa]s automaticamente\b", re.IGNORECASE),
 ]
 
 STOPWORDS = {
@@ -39,6 +44,14 @@ STOPWORDS = {
     "das",
     "dos",
     "que",
+    "edudocs",
+    "academy",
+    "curso",
+    "cursos",
+    "real",
+    "reais",
+    "hoje",
+    "pessoa",
     "de",
     "do",
     "da",
@@ -144,6 +157,11 @@ def validate_question(state: AgentState, deps: AgentDependencies) -> AgentState:
         return {"error": "Pergunta vazia ou curta demais.", "answerable": False}
     if len(normalized) > deps.settings.max_question_length:
         return {"error": "Pergunta acima do limite configurado.", "answerable": False}
+    if any(pattern.search(normalized) for pattern in INJECTION_PATTERNS):
+        return {
+            "error": "Pergunta contém instrução incompatível com o uso do corpus.",
+            "answerable": False,
+        }
     return {"normalized_question": normalized, "retrieval_attempt": 0, "answerable": False}
 
 
@@ -189,7 +207,7 @@ def evaluate_sufficiency(state: AgentState, deps: AgentDependencies) -> AgentSta
     )
     joined = " ".join(item.text.lower() for item in relevant)
     term_hits = {term for term in terms if term in joined}
-    if terms and len(term_hits) / len(terms) < 0.25:
+    if terms and (len(term_hits) < 2 or len(term_hits) / len(terms) < 0.25):
         return {"sufficient_context": False}
 
     asks_multi = any(

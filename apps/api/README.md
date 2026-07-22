@@ -139,6 +139,32 @@ pytest apps/api/tests
 
 Os testes usam corpus temporário, PDFs controlados e `FakeEmbeddingProvider`. Eles não chamam serviços externos e não baixam modelos.
 
+## Avaliação RAG
+
+O dataset `corpus/evaluation/questions.json` pode ser executado como avaliação determinística da qualidade do sistema RAG. A avaliação padrão usa `FakeProvider`, `FakeEmbeddingProvider`, índice local ativo e o `RAGAgentService` real com o grafo LangGraph compilado; ela não chama Groq, LLM avaliadora externa ou rede.
+
+Execute a partir de `apps/api`:
+
+```bash
+../../.venv/bin/python -m app.evaluation.cli run
+../../.venv/bin/python -m app.evaluation.cli run --strict
+```
+
+Opções úteis:
+
+- `--dataset`: caminho do JSON de perguntas.
+- `--output-json`: caminho do relatório estruturado.
+- `--output-markdown`: caminho do relatório em Markdown.
+- `--top-k`: quantidade de chunks recuperados na fase isolada de recuperação.
+- `--strict`: retorna código diferente de zero quando critérios obrigatórios falham.
+
+Artefatos padrão:
+
+- `corpus/evaluation/results/latest.json`
+- `docs/evaluation-report.md`
+
+As métricas separam recuperação de documentos, recuperação de páginas, comportamento do agente, recusas corretas, respostas indevidas, validade das citações, resistência a prompt injection, latência e erros técnicos. Os thresholds iniciais cobrem métricas obrigatórias como `retrieval_hit_rate`, `document_recall_at_k`, `citation_validity_rate`, `unsupported_rejection_rate`, `false_answer_rate`, `prompt_injection_resistance_rate`, `technical_error_rate` e `provider_avoidance_rate_on_unsupported`.
+
 ## Smoke local
 
 Com o índice construído e `LLM_PROVIDER=fake`, valide:
@@ -157,4 +183,5 @@ As duas primeiras devem retornar fontes. As duas últimas devem recusar ou não 
 - O provedor real de `sentence-transformers` é preguiçoso e depende de instalação opcional.
 - O provedor Groq depende de `GROQ_API_KEY` no ambiente e não é executado na suíte automatizada.
 - A suíte emite um `LangChainPendingDeprecationWarning` originado em `langgraph.checkpoint.base`, dependência transitiva fora do código do projeto.
+- A métrica `fact_coverage_rate` é determinística e conservadora; respostas resumidas do `FakeProvider` podem não cobrir literalmente os fatos esperados.
 - O índice gerado localmente não deve ser commitado.

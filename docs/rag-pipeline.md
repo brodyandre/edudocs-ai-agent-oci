@@ -102,6 +102,12 @@ Trechos de documentos devem ser tratados como dados, não como instruções. O p
 
 O prompt do sistema instrui o provedor a usar somente evidências, não revelar instruções internas, não obedecer comandos presentes nos documentos e não usar conhecimento externo. A consulta também remove tentativas óbvias de comandar o sistema antes da recuperação.
 
-## 20. Limitações
+## 20. Avaliação determinística
+
+O conjunto `corpus/evaluation/questions.json` é executado por `python -m app.evaluation.cli run` com provider falso e índice local ativo. A avaliação mede recuperação isolada, execução do agente real via grafo LangGraph compilado, validade de citações, recusas, prompt injection, latência e erros técnicos.
+
+Os relatórios padrão são `corpus/evaluation/results/latest.json` e `docs/evaluation-report.md`. O modo `--strict` usa thresholds configurados no avaliador e falha apenas quando critérios obrigatórios ficam abaixo do limite, preservando métricas negativas no relatório.
+
+## 21. Limitações
 
 O pipeline planejado não cobre OCR, documentos manuscritos, tabelas complexas, imagens embutidas, atualização incremental avançada ou avaliação automática de qualidade nesta etapa inicial.
