@@ -38,11 +38,15 @@ Cada chunk deve guardar:
 
 ## 8. Geração dos embeddings
 
-Os embeddings serão gerados por modelo multilíngue local configurável. A escolha do modelo deve considerar português, compatibilidade ARM64 e execução local.
+Os embeddings são acessados por uma interface desacoplada. A implementação determinística `FakeEmbeddingProvider` é usada em testes e na construção local inicial para evitar rede, downloads de modelos e consumo externo. A implementação `SentenceTransformerEmbeddingProvider` existe para uso posterior com modelo configurável e carregamento preguiçoso.
+
+O modelo documentado para uso real é `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`, por ser pequeno, multilíngue e adequado a português em cenários de prototipação. Ele não é baixado durante importação de módulos nem durante testes.
 
 ## 9. Persistência
 
-O índice vetorial e os metadados serão persistidos localmente em `corpus/index/`. Artefatos gerados não devem ser versionados no Git.
+O índice vetorial e os metadados são persistidos localmente em `corpus/index/active`. O pipeline grava embeddings em `.npz`, metadados em JSON, artefatos lexicais de TF-IDF e um manifesto do índice com fingerprint do corpus, fingerprint de configuração e versão do formato.
+
+Artefatos gerados não são versionados no Git. A reconstrução deve partir dos PDFs, do manifesto do corpus e da configuração.
 
 ## 10. Busca semântica
 
@@ -55,6 +59,8 @@ A busca lexical usa TF-IDF ou BM25 para capturar correspondências diretas de te
 ## 12. Fusão dos resultados
 
 Os resultados semânticos e lexicais devem ser combinados por estratégia determinística, como soma ponderada ou Reciprocal Rank Fusion. A ponderação deve ser ajustável.
+
+Na implementação inicial, a recuperação local combina similaridade cosseno dos embeddings normalizados com pontuação TF-IDF normalizada.
 
 ## 13. Deduplicação
 
