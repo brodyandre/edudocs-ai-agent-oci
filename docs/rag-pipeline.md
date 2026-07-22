@@ -70,17 +70,25 @@ Chunks repetidos ou muito próximos devem ser deduplicados por hash e por combin
 
 Antes de chamar o LLM, o grafo deve avaliar se os trechos recuperados respondem à pergunta. Critérios podem incluir pontuação mínima, diversidade de fontes e presença de termos relevantes.
 
+Na implementação atual, a suficiência é determinística: exige evidências acima de `EDUDOCS_MIN_RETRIEVAL_SCORE`, presença mínima de termos relevantes e diversidade de documentos quando a pergunta indicar comparação ou cruzamento documental.
+
 ## 15. Nova tentativa de recuperação
 
 Se o primeiro conjunto de evidências for fraco, o grafo pode reformular a consulta e tentar nova recuperação. O número de tentativas deve ser limitado para controlar latência.
+
+O limite atual é de duas recuperações por pergunta. A reformulação usa expansão controlada de sinônimos do domínio e não depende de LLM.
 
 ## 16. Geração da resposta
 
 A geração deve receber pergunta, trechos selecionados e instruções para responder apenas com base nas evidências. O provedor de LLM será chamado por uma interface isolada.
 
+Os provedores implementados são `FakeProvider`, usado em testes e smoke local, e `GroqProvider`, carregado apenas quando selecionado por configuração. O provider falso permite simular sucesso, indisponibilidade, timeout, rate limit, resposta vazia e citações inválidas.
+
 ## 17. Citações por documento e página
 
 Toda afirmação relevante da resposta deve ser apoiada por citações no formato definido pela aplicação, contendo pelo menos documento e página. Citações não devem apontar para páginas sem evidência usada.
+
+As fontes retornadas pelo endpoint são montadas a partir dos chunks efetivamente recuperados e validados contra o manifesto. O sistema não aceita documento, página ou trecho inventado pelo provedor.
 
 ## 18. Recusa quando não houver evidência
 
@@ -89,6 +97,8 @@ Quando os trechos recuperados não forem suficientes, o agente deve recusar a re
 ## 19. Proteção contra prompt injection documental
 
 Trechos de documentos devem ser tratados como dados, não como instruções. O prompt deve separar regras do sistema, pergunta do usuário e contexto recuperado, ignorando comandos encontrados dentro dos PDFs.
+
+O prompt do sistema instrui o provedor a usar somente evidências, não revelar instruções internas, não obedecer comandos presentes nos documentos e não usar conhecimento externo. A consulta também remove tentativas óbvias de comandar o sistema antes da recuperação.
 
 ## 20. Limitações
 

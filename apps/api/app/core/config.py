@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +28,43 @@ class Settings(BaseSettings):
     batch_size: int = Field(default=16, ge=1, le=512)
     default_top_k: int = Field(default=5, ge=1, le=50)
     testing: bool = False
+    llm_provider: str = Field(
+        default="fake",
+        validation_alias=AliasChoices("EDUDOCS_LLM_PROVIDER", "LLM_PROVIDER"),
+    )
+    groq_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("EDUDOCS_GROQ_API_KEY", "GROQ_API_KEY"),
+    )
+    groq_model: str = Field(
+        default="llama-3.1-8b-instant",
+        validation_alias=AliasChoices("EDUDOCS_GROQ_MODEL", "GROQ_MODEL"),
+    )
+    llm_temperature: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        validation_alias=AliasChoices("EDUDOCS_LLM_TEMPERATURE", "LLM_TEMPERATURE"),
+    )
+    llm_timeout_seconds: float = Field(
+        default=20.0,
+        ge=1.0,
+        le=120.0,
+        validation_alias=AliasChoices("EDUDOCS_LLM_TIMEOUT_SECONDS", "LLM_TIMEOUT_SECONDS"),
+    )
+    llm_max_retries: int = Field(
+        default=1,
+        ge=0,
+        le=3,
+        validation_alias=AliasChoices("EDUDOCS_LLM_MAX_RETRIES", "LLM_MAX_RETRIES"),
+    )
+    min_question_length: int = Field(default=3, ge=1, le=100)
+    max_question_length: int = Field(default=800, ge=50, le=4000)
+    chat_top_k: int = Field(default=6, ge=1, le=20)
+    min_retrieval_score: float = Field(default=0.12, ge=0.0, le=1.0)
+    evidence_limit: int = Field(default=5, ge=1, le=10)
+    max_context_chars: int = Field(default=6000, ge=500, le=20000)
+    max_retrieval_attempts: int = Field(default=2, ge=1, le=2)
 
     @field_validator("chunk_overlap")
     @classmethod

@@ -5,7 +5,9 @@ description = "API e pipeline de ingestão do EduDocs AI"
 requires-python = ">=3.10,<3.13"
 dependencies = [
   "fastapi>=0.115,<0.116",
+  "groq>=0.13,<1",
   "httpx>=0.27,<0.29",
+  "langgraph==0.2.76",
   "numpy>=1.26,<2.0",
   "pydantic>=2.10,<3",
   "pydantic-settings>=2.7,<3",

@@ -40,13 +40,19 @@ O MVP deve prever limitação de taxa na API ou no Nginx para reduzir abuso, loo
 
 Chamadas de recuperação, geração e rede devem ter timeouts definidos. Falhas por timeout devem retornar mensagens controladas e não expor detalhes internos.
 
+O provedor Groq usa timeout explícito por configuração e retries limitados. Timeouts são mapeados para erro HTTP 504 no endpoint de chat.
+
 ## 11. Logs estruturados e sanitizados
 
 Logs devem evitar perguntas completas quando houver risco de conteúdo sensível. Quando necessário, registrar identificadores, tempos, contagens e erros sanitizados.
 
+O endpoint `POST /api/chat` registra apenas `request_id`, rota, status, latência, provider, quantidade de evidências, `answerable` e tipo de erro. Não registra chave Groq, prompt integral, resposta integral, cabeçalhos sensíveis, variáveis de ambiente ou conteúdo integral dos PDFs.
+
 ## 12. Proteção contra prompt injection
 
 Documentos recuperados são dados, não instruções. O prompt deve reforçar que comandos encontrados nos PDFs não podem alterar regras do sistema, exfiltrar segredos ou desviar do escopo.
+
+Além do prompt, o agente valida fontes a partir de chunks recuperados e recusa quando não há sustentação documental. Pedidos para ignorar documentos, revelar prompt, revelar segredos ou usar conhecimento externo não devem produzir resposta factual sem evidência.
 
 ## 13. Dependências
 

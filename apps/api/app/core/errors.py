@@ -23,3 +23,19 @@ class EmbeddingError(EduDocsError):
 
 class IndexError(EduDocsError):
     """Erro de índice local."""
+
+
+class LLMProviderError(EduDocsError):
+    """Erro base do provedor de LLM."""
+
+
+class LLMProviderUnavailableError(LLMProviderError):
+    """Provedor de LLM indisponível."""
+
+
+class LLMProviderTimeoutError(LLMProviderError):
+    """Timeout do provedor de LLM."""
+
+
+class LLMProviderRateLimitError(LLMProviderError):
+    """Limite de taxa do provedor de LLM."""
