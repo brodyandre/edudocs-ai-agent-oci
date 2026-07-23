@@ -57,6 +57,7 @@ DELIVERY_COMMIT_MESSAGES = {
     "docs: audita o projeto e transforma o README em vitrine",
     "fix(docs): estabiliza baseline da auditoria",
     "fix(docs): preserva baseline da auditoria",
+    "fix(docs): congela snapshot de workflows",
 }
 EXPECTED_DELIVERY_PATHS = {
     "README.md",
@@ -516,9 +517,7 @@ def write_facts(facts: dict[str, Any], path: Path = FACTS_PATH) -> None:
             for key in ("github_url", "visibility", "default_branch"):
                 if not facts.get("git", {}).get(key) and existing.get("git", {}).get(key):
                     facts["git"][key] = existing["git"][key]
-            if not facts.get("github_actions", {}).get("latest") and existing.get(
-                "github_actions", {}
-            ).get("latest"):
+            if existing.get("github_actions", {}).get("latest"):
                 facts["github_actions"] = existing["github_actions"]
         comparable_existing = {**existing, "generated_at": facts.get("generated_at")}
         if comparable_existing == facts:
