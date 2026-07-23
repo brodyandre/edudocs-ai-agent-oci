@@ -57,8 +57,9 @@ O projeto usa uma aplicação educacional fictícia, a EduDocs Academy, para dem
 A primeira tela foi pensada para pessoas que não querem entender termos técnicos antes de usar o sistema. O hero mantém a promessa central do produto: **Pergunte aos documentos. Entenda a resposta.** O ícone documental reforça a ideia de pergunta, análise e fonte, sem competir com a ação principal.
 
 <!-- EVIDENCE:HOME:START -->
-> **Captura pendente:** `docs/evidence/home-hero.png`.
-> Consulte o guia em `docs/screenshot-guide.md`.
+![Hero da interface de consulta documental.](docs/evidence/home-hero.png)
+
+_Hero da interface de consulta documental._
 <!-- EVIDENCE:HOME:END -->
 
 [Voltar ao índice](#índice)
@@ -129,8 +130,9 @@ O agente não deve improvisar telefone real, endereço físico, diretoria, catá
 O mesmo princípio vale para prompt injection. Instruções maliciosas dentro da pergunta não devem sobrepor as regras de citação, recusa e uso exclusivo do corpus.
 
 <!-- EVIDENCE:UNSUPPORTED:START -->
-> **Captura pendente:** `docs/evidence/unsupported-question.png`.
-> Consulte o guia em `docs/screenshot-guide.md`.
+![Recusa segura quando o corpus nao sustenta a resposta.](docs/evidence/unsupported-question.png)
+
+_Recusa segura quando o corpus nao sustenta a resposta._
 <!-- EVIDENCE:UNSUPPORTED:END -->
 
 [Voltar ao índice](#índice)
@@ -148,8 +150,9 @@ O corpus atual tem cinco documentos fictícios, todos habilitados no manifesto `
 | Política de Privacidade | privacidade | 1.0 | Dados tratados, retenção, direitos e canais de privacidade. |
 
 <!-- EVIDENCE:DOCUMENTS:START -->
-> **Captura pendente:** `docs/evidence/documents-panel.png`.
-> Consulte o guia em `docs/screenshot-guide.md`.
+![Painel de documentos disponiveis no corpus ficticio.](docs/evidence/documents-panel.png)
+
+_Painel de documentos disponiveis no corpus ficticio._
 <!-- EVIDENCE:DOCUMENTS:END -->
 
 [Voltar ao índice](#índice)
@@ -248,8 +251,9 @@ O repositório usa quatro workflows reais:
 - **Containers CI**: Compose, Nginx, smoke integrado e builds amd64/arm64.
 
 <!-- EVIDENCE:ACTIONS:START -->
-> **Captura pendente:** `docs/evidence/github-actions.png`.
-> Consulte o guia em `docs/screenshot-guide.md`.
+![Workflows do GitHub Actions apos a validacao do projeto.](docs/evidence/github-actions.png)
+
+_Workflows do GitHub Actions apos a validacao do projeto._
 <!-- EVIDENCE:ACTIONS:END -->
 
 [Voltar ao índice](#índice)
@@ -261,8 +265,9 @@ A stack local integrada contém `api`, `web` e `nginx`. API e web ficam expostas
 Os containers usam controles como `read_only`, `tmpfs`, `cap_drop: ALL` e `no-new-privileges`. O pipeline também valida compatibilidade de build para `linux/amd64` e `linux/arm64`.
 
 <!-- EVIDENCE:DOCKER:START -->
-> **Captura pendente:** `docs/evidence/docker-smoke.png`.
-> Consulte o guia em `docs/screenshot-guide.md`.
+![Validacao integrada da stack Docker local.](docs/evidence/docker-smoke.png)
+
+_Validacao integrada da stack Docker local._
 <!-- EVIDENCE:DOCKER:END -->
 
 [Voltar ao índice](#índice)
