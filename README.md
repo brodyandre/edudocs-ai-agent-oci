@@ -383,7 +383,7 @@ Próximo:
 
 A OCI é o próximo passo planejado. Esta entrega prepara a documentação e a auditoria pré-Terraform, mas não cria arquivos Terraform, não executa `plan`, `apply` ou `destroy`, e não afirma deploy ativo.
 
-Antes do Prompt 09, ainda falta validar credenciais fora do Git, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state.
+O Prompt 09 pode criar e validar o código Terraform sem credenciais reais. Credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state devem ser confirmados antes do primeiro `terraform plan` real e antes de qualquer `apply`.
 
 <!-- EVIDENCE:OCI_APP:START -->
 > **Captura reservada para etapa futura:** `docs/evidence/oci-application.png`.
@@ -408,7 +408,7 @@ Antes do Prompt 09, ainda falta validar credenciais fora do Git, compartment, ho
 | Corpus PDF | Concluído com documentos fictícios |
 | Interface gráfica | Concluída para uso local |
 | Deploy OCI | Pendente |
-| Screenshots locais | Espaços preparados; imagens ainda pendentes |
+| Screenshots locais | Concluídos e inseridos contextualmente no README |
 | Evidência OCI | Reservada para etapa futura |
 
 [Voltar ao índice](#índice)
