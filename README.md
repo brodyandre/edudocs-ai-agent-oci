@@ -117,8 +117,9 @@ Quando encontra base suficiente, o agente retorna uma resposta objetiva, indica 
 Esse desenho evita que a resposta pareça uma opinião solta. A pessoa consegue conferir a origem sem abrir todos os PDFs manualmente.
 
 <!-- EVIDENCE:ANSWER:START -->
-> **Captura pendente:** `docs/evidence/answer-with-sources.png`.
-> Consulte o guia em `docs/screenshot-guide.md`.
+![Resposta com fontes e paginas exibidas para o usuario.](docs/evidence/answer-with-sources.png)
+
+_Resposta com fontes e paginas exibidas para o usuario._
 <!-- EVIDENCE:ANSWER:END -->
 
 [Voltar ao índice](#índice)
