@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-23T17:40:27Z",
+  "generated_at": "2026-07-23T17:43:12Z",
   "repository": {
     "name": "edudocs-ai-agent-oci",
     "url": "https://github.com/brodyandre/edudocs-ai-agent-oci"
@@ -208,6 +208,16 @@
   },
   "github_actions": {
     "latest": {
+      "Quality": {
+        "conclusion": "success",
+        "createdAt": "2026-07-23T17:41:48Z",
+        "databaseId": 30030506724,
+        "headSha": "995266120727b8b6512c2e6fddb85472eaeb80f9",
+        "name": "Quality",
+        "status": "completed",
+        "url": "https://github.com/brodyandre/edudocs-ai-agent-oci/actions/runs/30030506724",
+        "workflowName": "Quality"
+      },
       "Containers CI": {
         "conclusion": "success",
         "createdAt": "2026-07-23T17:37:08Z",
@@ -217,16 +227,6 @@
         "status": "completed",
         "url": "https://github.com/brodyandre/edudocs-ai-agent-oci/actions/runs/30030181610",
         "workflowName": "Containers CI"
-      },
-      "Quality": {
-        "conclusion": "success",
-        "createdAt": "2026-07-23T17:37:08Z",
-        "databaseId": 30030181598,
-        "headSha": "54f95a7cb0e281198eeaa944109050918adca884",
-        "name": "Quality",
-        "status": "completed",
-        "url": "https://github.com/brodyandre/edudocs-ai-agent-oci/actions/runs/30030181598",
-        "workflowName": "Quality"
       },
       "API CI": {
         "conclusion": "success",
@@ -249,7 +249,7 @@
         "workflowName": "Web CI"
       }
     },
-    "runs_checked": 19
+    "runs_checked": 20
   },
   "evidence": {
     "home": {

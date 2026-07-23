@@ -1,6 +1,6 @@
 # Auditoria pre-Terraform do EduDocs AI
 
-Gerado em `2026-07-23T17:40:27Z`.
+Gerado em `2026-07-23T17:43:12Z`.
 
 ## 1. Resumo executivo
 
@@ -67,7 +67,7 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 
 - API CI: completed / success (54f95a7)
 - Containers CI: completed / success (54f95a7)
-- Quality: completed / success (54f95a7)
+- Quality: completed / success (9952661)
 - Web CI: completed / success (54f95a7)
 
 ## 9. Evidencias visuais

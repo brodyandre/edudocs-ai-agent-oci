@@ -53,6 +53,11 @@ EVIDENCE_FILES = {
 }
 
 FUTURE_EVIDENCE = {"oci_application", "oci_instance"}
+DELIVERY_COMMIT_MESSAGES = {
+    "docs: audita o projeto e transforma o README em vitrine",
+    "fix(docs): estabiliza baseline da auditoria",
+    "fix(docs): preserva baseline da auditoria",
+}
 EXPECTED_DELIVERY_PATHS = {
     "README.md",
     "Makefile",
@@ -167,17 +172,10 @@ def dependencies_from_pyproject(path: Path) -> dict[str, str]:
 
 def collect_git(root: Path = ROOT) -> dict[str, Any]:
     remote = run_command(["git", "remote", "get-url", "origin"], root)
-    head = run_command(["git", "rev-parse", "HEAD"], root)
-    log_message = run_command(["git", "log", "-1", "--pretty=%s"], root)
-    log_date = run_command(["git", "log", "-1", "--date=iso-strict", "--pretty=%cd"], root)
-    if log_message["output"] == "docs: audita o projeto e transforma o README em vitrine":
-        parent = run_command(["git", "rev-parse", "HEAD^"], root)
-        parent_message = run_command(["git", "log", "-1", "--pretty=%s", "HEAD^"], root)
-        parent_date = run_command(["git", "log", "-1", "--date=iso-strict", "--pretty=%cd", "HEAD^"], root)
-        if parent["ok"]:
-            head = parent
-            log_message = parent_message
-            log_date = parent_date
+    baseline_rev = find_baseline_revision(root)
+    head = run_command(["git", "rev-parse", baseline_rev], root)
+    log_message = run_command(["git", "log", "-1", "--pretty=%s", baseline_rev], root)
+    log_date = run_command(["git", "log", "-1", "--date=iso-strict", "--pretty=%cd", baseline_rev], root)
     status = run_command(["git", "status", "--short"], root)
     unexpected_status = filter_unexpected_status(status["output"])
     sync = run_command(["git", "rev-list", "--left-right", "--count", "main...origin/main"], root)
@@ -212,6 +210,19 @@ def collect_git(root: Path = ROOT) -> dict[str, Any]:
         "visibility": repo_data.get("visibility"),
         "default_branch": (repo_data.get("defaultBranchRef") or {}).get("name"),
     }
+
+
+def find_baseline_revision(root: Path = ROOT) -> str:
+    revision = "HEAD"
+    for _ in range(10):
+        message = run_command(["git", "log", "-1", "--pretty=%s", revision], root)
+        if message["output"] not in DELIVERY_COMMIT_MESSAGES:
+            return revision
+        parent = run_command(["git", "rev-parse", f"{revision}^"], root)
+        if not parent["ok"]:
+            return revision
+        revision = f"{revision}^"
+    return revision
 
 
 def filter_unexpected_status(status_output: str) -> str:
