@@ -3,6 +3,7 @@
 import React from "react";
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
+import { DocumentAnswerIcon } from "@/components/DocumentAnswerIcon";
 import { createApiClient, EduDocsApiError } from "@/lib/api-client";
 import type { ChatResponse, DocumentResponse, SourceResponse } from "@/types/api";
 
@@ -234,15 +235,20 @@ export function EduDocsApp() {
           <StatusPill availability={availability} compact />
         </div>
         <div className="grid gap-10 lg:grid-cols-[1.65fr_0.85fr] lg:items-end">
-          <div>
-            <p className="text-[0.82rem] font-semibold uppercase tracking-[0.25em] text-rose">
-              EduDocs AI
-            </p>
-            <h1 className="hero-title">
-              Pergunte aos documentos.
-              <br />
-              <em>Entenda a resposta.</em>
-            </h1>
+          <div className="hero-title-visual">
+            <div className="hero-title-copy">
+              <p className="text-[0.82rem] font-semibold uppercase tracking-[0.25em] text-rose">
+                EduDocs AI
+              </p>
+              <h1 className="hero-title">
+                Pergunte aos documentos.
+                <br />
+                <em>Entenda a resposta.</em>
+              </h1>
+            </div>
+            <div className="hero-icon" aria-hidden="true">
+              <DocumentAnswerIcon className="hero-icon-svg" />
+            </div>
           </div>
           <div>
             <p className="hero-copy">

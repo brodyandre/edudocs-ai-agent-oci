@@ -95,8 +95,76 @@ summary:focus-visible {
     @apply mt-5 max-w-5xl font-serif text-[clamp(4rem,8vw,8.2rem)] font-normal leading-[0.86] tracking-normal text-paper;
   }
 
+  .hero-title-visual {
+    @apply grid min-w-0 items-end gap-6 overflow-visible;
+  }
+
+  .hero-title-copy {
+    @apply min-w-0;
+  }
+
   .hero-title em {
     @apply not-italic text-pine;
+  }
+
+  .hero-icon {
+    @apply pointer-events-none mx-auto w-[min(68vw,10.5rem)] max-w-full shrink-0 text-pine sm:mx-0 sm:w-[min(42vw,13rem)] lg:w-[clamp(10rem,13vw,15.5rem)];
+    filter: drop-shadow(0 18px 34px rgba(167, 243, 194, 0.1));
+  }
+
+  .hero-icon-svg {
+    @apply block h-auto w-full overflow-visible;
+  }
+
+  .document-answer-icon__paper,
+  .document-answer-icon__fold,
+  .document-answer-icon__line,
+  .document-answer-icon__bubble {
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .document-answer-icon__paper,
+  .document-answer-icon__bubble {
+    stroke-width: 4;
+  }
+
+  .document-answer-icon__fold,
+  .document-answer-icon__line {
+    stroke-width: 3;
+  }
+
+  .document-answer-icon__line {
+    opacity: 0.76;
+  }
+
+  .document-answer-icon__line--soft {
+    opacity: 0.45;
+  }
+
+  .document-answer-icon__bubble {
+    fill: rgba(13, 20, 18, 0.9);
+  }
+
+  .document-answer-icon__dot {
+    fill: currentColor;
+    opacity: 0.86;
+  }
+
+  .document-answer-icon__spark {
+    fill: theme("colors.rose");
+    filter: drop-shadow(0 0 12px rgba(255, 129, 111, 0.26));
+  }
+
+  .document-answer-icon__spark--quiet {
+    opacity: 0.34;
+  }
+
+  .document-answer-icon__base {
+    fill: currentColor;
+    opacity: 0.08;
   }
 
   .hero-copy {
@@ -194,5 +262,28 @@ summary:focus-visible {
 
   .copy-button {
     @apply border border-line bg-transparent px-3 py-2 text-[0.62rem] font-semibold uppercase tracking-[0.08em] text-muted transition hover:border-pine hover:bg-pine hover:text-ink;
+  }
+
+  @media (min-width: 900px) {
+    .hero-title-visual {
+      grid-template-columns: minmax(0, 1fr) minmax(10rem, 0.26fr);
+    }
+
+    .hero-icon {
+      justify-self: end;
+      margin-bottom: 0.45rem;
+    }
+  }
+
+  @media (max-width: 899px) {
+    .hero-title-visual {
+      justify-items: start;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .hero-icon {
+      width: min(52vw, 9.5rem);
+    }
   }
 }

@@ -114,11 +114,22 @@ describe("EduDocsApp", () => {
   it("renderiza a tela inicial", async () => {
     await renderReady();
     expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(screen.getByText("Pergunte aos documentos.")).toBeVisible();
+    expect(screen.getByText("Entenda a resposta.")).toBeVisible();
     expect(
       screen.getByRole("heading", {
         name: /Pergunte sobre normas, certificados, reembolsos/i,
       }),
     ).toBeInTheDocument();
+  });
+
+  it("renderiza ícone decorativo de consulta documental no hero", async () => {
+    await renderReady();
+    const icon = screen.getByTestId("document-answer-icon");
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(icon).toHaveAttribute("focusable", "false");
+    expect(icon).not.toHaveAttribute("role", "button");
   });
 
   it("renderiza cabeçalho com nome e link seguro", async () => {
