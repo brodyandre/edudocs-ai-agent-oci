@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gera fatos verificaveis do projeto antes da etapa Terraform."""
+"""Gera fatos verificaveis do projeto e da preparacao Terraform."""
 
 from __future__ import annotations
 
@@ -60,9 +60,12 @@ DELIVERY_COMMIT_MESSAGES = {
     "fix(docs): congela snapshot de workflows",
 }
 EXPECTED_DELIVERY_PATHS = {
+    ".github/workflows/quality.yml",
+    ".gitignore",
     "README.md",
     "Makefile",
     "scripts/audit_project_readiness.py",
+    "scripts/check_repository_hygiene.py",
     "scripts/sync_readme_evidence.py",
     "scripts/check_readme.py",
     "apps/api/tests/test_project_audit.py",
@@ -71,7 +74,36 @@ EXPECTED_DELIVERY_PATHS = {
     "docs/project-facts.json",
     "docs/pre-terraform-audit.md",
     "docs/screenshot-guide.md",
+    "docs/architecture.md",
+    "docs/ci-cd.md",
+    "docs/delivery-plan.md",
+    "docs/security.md",
+    "docs/deployment-oci.md",
+    "docs/cost-controls.md",
     "docs/evidence/.gitkeep",
+    "infrastructure/cloud-init/app-server.yaml.tftpl",
+    "infrastructure/terraform/.terraform.lock.hcl",
+    "infrastructure/terraform/README.md",
+    "infrastructure/terraform/data.tf",
+    "infrastructure/terraform/locals.tf",
+    "infrastructure/terraform/main.tf",
+    "infrastructure/terraform/outputs.tf",
+    "infrastructure/terraform/providers.tf",
+    "infrastructure/terraform/terraform.tfvars.example",
+    "infrastructure/terraform/variables.tf",
+    "infrastructure/terraform/versions.tf",
+    "infrastructure/terraform/modules/",
+    "infrastructure/terraform/modules/compute/main.tf",
+    "infrastructure/terraform/modules/compute/outputs.tf",
+    "infrastructure/terraform/modules/compute/variables.tf",
+    "infrastructure/terraform/modules/network/main.tf",
+    "infrastructure/terraform/modules/network/outputs.tf",
+    "infrastructure/terraform/modules/network/variables.tf",
+    "infrastructure/terraform/modules/object-storage/main.tf",
+    "infrastructure/terraform/modules/object-storage/outputs.tf",
+    "infrastructure/terraform/modules/object-storage/variables.tf",
+    "scripts/check_terraform_policy.py",
+    "apps/api/tests/test_terraform_policy.py",
 }
 
 EVALUATION_METRICS = (
@@ -92,7 +124,9 @@ EVALUATION_METRICS = (
 )
 
 
-def run_command(args: list[str], root: Path = ROOT, timeout: int = 120) -> dict[str, Any]:
+def run_command(
+    args: list[str], root: Path = ROOT, timeout: int = 120
+) -> dict[str, Any]:
     try:
         result = subprocess.run(
             args,
@@ -104,7 +138,12 @@ def run_command(args: list[str], root: Path = ROOT, timeout: int = 120) -> dict[
             timeout=timeout,
         )
     except FileNotFoundError:
-        return {"available": False, "ok": False, "returncode": None, "output": "indisponivel"}
+        return {
+            "available": False,
+            "ok": False,
+            "returncode": None,
+            "output": "indisponivel",
+        }
     except subprocess.TimeoutExpired:
         return {"available": True, "ok": False, "returncode": None, "output": "timeout"}
 
@@ -131,7 +170,9 @@ def sanitize_output(value: str) -> str:
     value = re.sub(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{8,}\b", "[redacted]", value)
     value = re.sub(r"\bgithub_pat_[A-Za-z0-9_]{8,}\b", "[redacted]", value)
     groq_key_name = "GROQ" + "_API_KEY"
-    value = re.sub(rf"\b{groq_key_name}\s*=\s*[^\s#]+", f"{groq_key_name}=[redacted]", value)
+    value = re.sub(
+        rf"\b{groq_key_name}\s*=\s*[^\s#]+", f"{groq_key_name}=[redacted]", value
+    )
     value = re.sub(r"\bocid1\.[A-Za-z0-9_.-]+", "[redacted-ocid]", value)
     return value
 
@@ -176,10 +217,14 @@ def collect_git(root: Path = ROOT) -> dict[str, Any]:
     baseline_rev = find_baseline_revision(root)
     head = run_command(["git", "rev-parse", baseline_rev], root)
     log_message = run_command(["git", "log", "-1", "--pretty=%s", baseline_rev], root)
-    log_date = run_command(["git", "log", "-1", "--date=iso-strict", "--pretty=%cd", baseline_rev], root)
+    log_date = run_command(
+        ["git", "log", "-1", "--date=iso-strict", "--pretty=%cd", baseline_rev], root
+    )
     status = run_command(["git", "status", "--short"], root)
     unexpected_status = filter_unexpected_status(status["output"])
-    sync = run_command(["git", "rev-list", "--left-right", "--count", "main...origin/main"], root)
+    sync = run_command(
+        ["git", "rev-list", "--left-right", "--count", "main...origin/main"], root
+    )
     repo = run_command(
         [
             "gh",
@@ -257,17 +302,27 @@ def parse_test_count(output: str) -> int | None:
     ]
     counts: list[int] = []
     for pattern in patterns:
-        counts.extend(int(item) for item in re.findall(pattern, output, flags=re.IGNORECASE))
+        counts.extend(
+            int(item) for item in re.findall(pattern, output, flags=re.IGNORECASE)
+        )
     return max(counts) if counts else None
 
 
 def collect_web(root: Path = ROOT) -> dict[str, Any]:
     package = load_json(root / "apps/web/package.json", {})
     deps = {**package.get("dependencies", {}), **package.get("devDependencies", {})}
-    lint = run_command(["npm", "--prefix", "apps/web", "run", "lint"], root, timeout=180)
-    typecheck = run_command(["npm", "--prefix", "apps/web", "run", "typecheck"], root, timeout=180)
-    tests = run_command_with_retry(["npm", "--prefix", "apps/web", "run", "test"], root, timeout=240)
-    build = run_command(["npm", "--prefix", "apps/web", "run", "build"], root, timeout=240)
+    lint = run_command(
+        ["npm", "--prefix", "apps/web", "run", "lint"], root, timeout=180
+    )
+    typecheck = run_command(
+        ["npm", "--prefix", "apps/web", "run", "typecheck"], root, timeout=180
+    )
+    tests = run_command_with_retry(
+        ["npm", "--prefix", "apps/web", "run", "test"], root, timeout=240
+    )
+    build = run_command(
+        ["npm", "--prefix", "apps/web", "run", "build"], root, timeout=240
+    )
     return {
         "next": deps.get("next"),
         "react": deps.get("react"),
@@ -286,10 +341,16 @@ def collect_web(root: Path = ROOT) -> dict[str, Any]:
 
 
 def collect_api(root: Path = ROOT) -> dict[str, Any]:
-    pyproject = tomllib.loads((root / "apps/api/pyproject.toml").read_text(encoding="utf-8"))
+    pyproject = tomllib.loads(
+        (root / "apps/api/pyproject.toml").read_text(encoding="utf-8")
+    )
     deps = dependencies_from_pyproject(root / "apps/api/pyproject.toml")
-    ruff = run_command([str(root / ".venv/bin/ruff"), "check", "apps/api"], root, timeout=180)
-    pytest = run_command([str(root / ".venv/bin/pytest"), "apps/api/tests"], root, timeout=240)
+    ruff = run_command(
+        [str(root / ".venv/bin/ruff"), "check", "apps/api"], root, timeout=180
+    )
+    pytest = run_command(
+        [str(root / ".venv/bin/pytest"), "apps/api/tests"], root, timeout=240
+    )
     return {
         "python": pyproject.get("project", {}).get("requires-python"),
         "fastapi": deps.get("fastapi"),
@@ -331,22 +392,30 @@ def collect_corpus(root: Path = ROOT) -> dict[str, Any]:
 def collect_evaluation(root: Path = ROOT) -> dict[str, Any]:
     latest = load_json(root / "corpus/evaluation/results/latest.json", {})
     questions = load_json(root / "corpus/evaluation/questions.json", [])
-    categories = Counter(item.get("category") for item in questions if isinstance(item, dict))
+    categories = Counter(
+        item.get("category") for item in questions if isinstance(item, dict)
+    )
     metrics = latest.get("metrics", {})
     return {
-        "questions": len(questions) if isinstance(questions, list) else latest.get("dataset_count"),
+        "questions": len(questions)
+        if isinstance(questions, list)
+        else latest.get("dataset_count"),
         "categories": dict(sorted(categories.items())),
         "metrics": {name: metrics.get(name) for name in EVALUATION_METRICS},
         "limitations": {
             "fact_coverage_rate": metrics.get("fact_coverage_rate"),
-            "complete_document_citation_rate": metrics.get("complete_document_citation_rate"),
+            "complete_document_citation_rate": metrics.get(
+                "complete_document_citation_rate"
+            ),
             "page_recall_at_k": metrics.get("page_recall_at_k"),
         },
     }
 
 
 def collect_docker(root: Path = ROOT) -> dict[str, Any]:
-    compose = load_json_from_command(["docker", "compose", "config", "--format", "json"], root)
+    compose = load_json_from_command(
+        ["docker", "compose", "config", "--format", "json"], root
+    )
     services = compose.get("services", {}) if isinstance(compose, dict) else {}
     smoke = (
         run_command(["python3", "scripts/smoke_test.py"], root, timeout=180)
@@ -357,12 +426,14 @@ def collect_docker(root: Path = ROOT) -> dict[str, Any]:
         "services": sorted(services),
         "public_ports": extract_public_ports(services),
         "internal_ports": extract_internal_ports(services),
-        "index_volume": "edudocs-index" in (compose.get("volumes", {}) if isinstance(compose, dict) else {}),
+        "index_volume": "edudocs-index"
+        in (compose.get("volumes", {}) if isinstance(compose, dict) else {}),
         "non_root_controls": {
             name: {
                 "read_only": service.get("read_only") is True,
                 "cap_drop_all": "ALL" in service.get("cap_drop", []),
-                "no_new_privileges": "no-new-privileges:true" in service.get("security_opt", []),
+                "no_new_privileges": "no-new-privileges:true"
+                in service.get("security_opt", []),
             }
             for name, service in services.items()
         },
@@ -429,7 +500,10 @@ def collect_github_actions(root: Path = ROOT) -> dict[str, Any]:
     latest: dict[str, Any] = {}
     for run in runs:
         workflow = run.get("workflowName") or run.get("name")
-        if workflow in {"Quality", "API CI", "Web CI", "Containers CI"} and workflow not in latest:
+        if (
+            workflow in {"Quality", "API CI", "Web CI", "Containers CI"}
+            and workflow not in latest
+        ):
             latest[workflow] = run
     return {"latest": latest, "runs_checked": len(runs)}
 
@@ -448,23 +522,71 @@ def collect_evidence(root: Path = ROOT) -> dict[str, Any]:
     return evidence
 
 
-def collect_terraform_readiness(tools: dict[str, Any]) -> dict[str, Any]:
+def collect_terraform_readiness(
+    tools: dict[str, Any], root: Path = ROOT
+) -> dict[str, Any]:
+    terraform_dir = root / "infrastructure" / "terraform"
+    cloud_init = root / "infrastructure" / "cloud-init" / "app-server.yaml.tftpl"
+    versions = (
+        (terraform_dir / "versions.tf").read_text(encoding="utf-8")
+        if (terraform_dir / "versions.tf").is_file()
+        else ""
+    )
+    policy = run_command(
+        ["python3", "scripts/check_terraform_policy.py"], root, timeout=120
+    )
+    fmt = run_command(
+        ["terraform", "-chdir=infrastructure/terraform", "fmt", "-recursive", "-check"],
+        root,
+        timeout=120,
+    )
+    validate = (
+        run_command(
+            ["terraform", "-chdir=infrastructure/terraform", "validate"],
+            root,
+            timeout=120,
+        )
+        if (terraform_dir / ".terraform").is_dir()
+        else {"ok": None, "returncode": None}
+    )
     return {
         "terraform_installed": tools.get("terraform", {}).get("available", False),
         "terraform_version": tools.get("terraform", {}).get("version"),
-        "infrastructure_created": False,
+        "infrastructure_created": terraform_dir.is_dir(),
+        "required_version": ">= 1.15.0, < 1.16.0"
+        if ">= 1.15.0, < 1.16.0" in versions
+        else None,
+        "oci_provider": "~> 8.23.0" if "~> 8.23.0" in versions else None,
+        "modules": {
+            "network": (terraform_dir / "modules" / "network" / "main.tf").is_file(),
+            "compute": (terraform_dir / "modules" / "compute" / "main.tf").is_file(),
+            "object_storage": (
+                terraform_dir / "modules" / "object-storage" / "main.tf"
+            ).is_file(),
+        },
+        "cloud_init_created": cloud_init.is_file(),
+        "terraform_fmt_ok": fmt.get("ok"),
+        "terraform_validate_ok": validate.get("ok"),
+        "terraform_policy_ok": policy.get("ok"),
         "oci_credentials_verified": False,
         "compartment_verified": False,
         "home_region_verified": False,
         "a1_capacity_verified": False,
         "admin_cidr_defined": False,
         "state_strategy_applied": False,
-        "prompt_09_pending": True,
+        "terraform_plan_executed": False,
+        "terraform_apply_executed": False,
+        "prompt_09_pending": False,
     }
 
 
 def collect_facts(root: Path = ROOT) -> dict[str, Any]:
-    generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    generated_at = (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
     tools = collect_tools(root)
     facts = {
         "generated_at": generated_at,
@@ -481,7 +603,7 @@ def collect_facts(root: Path = ROOT) -> dict[str, Any]:
         "docker": collect_docker(root),
         "github_actions": collect_github_actions(root),
         "evidence": collect_evidence(root),
-        "terraform_readiness": collect_terraform_readiness(tools),
+        "terraform_readiness": collect_terraform_readiness(tools, root),
         "warnings": [],
         "format_version": "1",
     }
@@ -500,6 +622,11 @@ def collect_warnings(facts: dict[str, Any]) -> list[str]:
                 warnings.append(f"Validacao {area}/{check} falhou durante a auditoria.")
     if facts["docker"].get("smoke_test", {}).get("ok") is False:
         warnings.append("Smoke test Docker nao foi aprovado durante a auditoria.")
+    terraform = facts.get("terraform_readiness", {})
+    if terraform.get("terraform_policy_ok") is False:
+        warnings.append("Politica Terraform OCI nao foi aprovada durante a auditoria.")
+    if terraform.get("terraform_validate_ok") is False:
+        warnings.append("Validacao Terraform nao foi aprovada durante a auditoria.")
     return warnings
 
 
@@ -515,14 +642,18 @@ def write_facts(facts: dict[str, Any], path: Path = FACTS_PATH) -> None:
             facts["docker"]["smoke_test"] = existing["docker"]["smoke_test"]
         if isinstance(existing, dict):
             for key in ("github_url", "visibility", "default_branch"):
-                if not facts.get("git", {}).get(key) and existing.get("git", {}).get(key):
+                if not facts.get("git", {}).get(key) and existing.get("git", {}).get(
+                    key
+                ):
                     facts["git"][key] = existing["git"][key]
             if existing.get("github_actions", {}).get("latest"):
                 facts["github_actions"] = existing["github_actions"]
         comparable_existing = {**existing, "generated_at": facts.get("generated_at")}
         if comparable_existing == facts:
             facts["generated_at"] = existing.get("generated_at", facts["generated_at"])
-    path.write_text(json.dumps(facts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(facts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def render_report(facts: dict[str, Any]) -> str:
@@ -533,53 +664,57 @@ def render_report(facts: dict[str, Any]) -> str:
     evaluation = facts["evaluation"]
     docker = facts["docker"]
     actions = facts["github_actions"]["latest"]
+    terraform = facts["terraform_readiness"]
     metrics_lines = "\n".join(
         f"- `{name}`: {value}" for name, value in evaluation["metrics"].items()
     )
-    actions_lines = "\n".join(
-        f"- {name}: {run.get('status')} / {run.get('conclusion')} ({run.get('headSha', '')[:7]})"
-        for name, run in sorted(actions.items())
-    ) or "- Pendente: nenhum workflow recente encontrado."
+    actions_lines = (
+        "\n".join(
+            f"- {name}: {run.get('status')} / {run.get('conclusion')} ({run.get('headSha', '')[:7]})"
+            for name, run in sorted(actions.items())
+        )
+        or "- Pendente: nenhum workflow recente encontrado."
+    )
     evidence_lines = "\n".join(
         f"- `{item['path']}`: {item['status']}" for item in facts["evidence"].values()
     )
-    return f"""# Auditoria pre-Terraform do EduDocs AI
+    return f"""# Auditoria Terraform do EduDocs AI
 
-Gerado em `{facts['generated_at']}`.
+Gerado em `{facts["generated_at"]}`.
 
 ## 1. Resumo executivo
 
-Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose e GitHub Actions registrados em fatos automatizados.
+Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose, Terraform OCI validavel e GitHub Actions registrados em fatos automatizados.
 
-Pendente: a infraestrutura OCI ainda nao foi criada e o Prompt 09 continua pendente.
+Pendente: credenciais OCI, primeiro `terraform plan` real, qualquer `apply`, deploy da aplicacao, dominio, HTTPS e evidencias OCI reais.
 
 ## 2. Baseline Git
 
-- Branch: `{git.get('branch')}`
-- HEAD: `{git.get('head')}`
-- Ultimo commit: `{git.get('last_commit_message')}`
-- Data do ultimo commit: `{git.get('last_commit_date')}`
-- Sincronismo `main...origin/main`: `{git.get('sync_main_origin')}`
-- Workspace limpo: `{git.get('workspace_clean')}`
-- Repositorio: `{git.get('github_url') or git.get('repository_url')}`
-- Visibilidade: `{git.get('visibility')}`
-- Branch padrao: `{git.get('default_branch')}`
+- Branch: `{git.get("branch")}`
+- HEAD: `{git.get("head")}`
+- Ultimo commit: `{git.get("last_commit_message")}`
+- Data do ultimo commit: `{git.get("last_commit_date")}`
+- Sincronismo `main...origin/main`: `{git.get("sync_main_origin")}`
+- Workspace limpo: `{git.get("workspace_clean")}`
+- Repositorio: `{git.get("github_url") or git.get("repository_url")}`
+- Visibilidade: `{git.get("visibility")}`
+- Branch padrao: `{git.get("default_branch")}`
 
 ## 3. Estado funcional
 
-- Web: lint `{web['lint']['ok']}`, typecheck `{web['typecheck']['ok']}`, build `{web['build']['ok']}`.
-- API: Ruff `{api['ruff']['ok']}`, pytest `{api['pytest']['ok']}`.
-- Corpus: {corpus['enabled_documents']} documentos habilitados, {corpus.get('total_pages')} paginas e {corpus.get('chunks')} chunks.
+- Web: lint `{web["lint"]["ok"]}`, typecheck `{web["typecheck"]["ok"]}`, build `{web["build"]["ok"]}`.
+- API: Ruff `{api["ruff"]["ok"]}`, pytest `{api["pytest"]["ok"]}`.
+- Corpus: {corpus["enabled_documents"]} documentos habilitados, {corpus.get("total_pages")} paginas e {corpus.get("chunks")} chunks.
 
 ## 4. Testes
 
-- Testes Web nesta auditoria: {web['test'].get('tests')}.
-- Testes API nesta auditoria: {api['pytest'].get('tests')}.
+- Testes Web nesta auditoria: {web["test"].get("tests")}.
+- Testes API nesta auditoria: {api["pytest"].get("tests")}.
 
 ## 5. Avaliacao RAG
 
-- Perguntas: {evaluation.get('questions')}.
-- Categorias: {evaluation.get('categories')}.
+- Perguntas: {evaluation.get("questions")}.
+- Categorias: {evaluation.get("categories")}.
 
 {metrics_lines}
 
@@ -589,11 +724,11 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 
 ## 7. Containers
 
-- Servicos: {', '.join(docker.get('services', []))}
-- Portas publicas: {docker.get('public_ports')}
-- Portas internas: {docker.get('internal_ports')}
-- Volume de indice: {docker.get('index_volume')}
-- Smoke test: {docker.get('smoke_test', {}).get('ok')}
+- Servicos: {", ".join(docker.get("services", []))}
+- Portas publicas: {docker.get("public_ports")}
+- Portas internas: {docker.get("internal_ports")}
+- Volume de indice: {docker.get("index_volume")}
+- Smoke test: {docker.get("smoke_test", {}).get("ok")}
 
 ## 8. CI
 
@@ -605,13 +740,20 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 
 ## 10. Pendencias antes do Terraform
 
+- Terraform criado: `{terraform.get("infrastructure_created")}`.
+- Provider OCI: `{terraform.get("oci_provider")}`.
+- Modulos: `{terraform.get("modules")}`.
+- Cloud-init criado: `{terraform.get("cloud_init_created")}`.
+- Terraform fmt: `{terraform.get("terraform_fmt_ok")}`.
+- Terraform validate: `{terraform.get("terraform_validate_ok")}`.
+- Politica Terraform: `{terraform.get("terraform_policy_ok")}`.
 - Futuro: definir credenciais OCI fora do repositorio.
 - Futuro: validar compartment, home region e disponibilidade A1.
-- Futuro: definir CIDR administrativo.
-- Futuro: aplicar estrategia de state.
+- Futuro: definir CIDR administrativo real.
+- Futuro: aplicar estrategia de state antes do primeiro plan real.
 - Nao aplicavel nesta entrega: `terraform plan`, `apply` ou `destroy`.
 
-## 11. Checklist de aprovacao para executar o Prompt 09
+## 11. Checklist de aprovacao antes do primeiro plan real
 
 - [ ] Credenciais OCI configuradas fora do Git.
 - [ ] Compartment validado.

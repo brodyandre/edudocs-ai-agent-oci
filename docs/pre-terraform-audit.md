@@ -1,19 +1,19 @@
-# Auditoria pre-Terraform do EduDocs AI
+# Auditoria Terraform do EduDocs AI
 
-Gerado em `2026-07-23T17:50:07Z`.
+Gerado em `2026-07-23T18:35:39Z`.
 
 ## 1. Resumo executivo
 
-Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose e GitHub Actions registrados em fatos automatizados.
+Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose, Terraform OCI validavel e GitHub Actions registrados em fatos automatizados.
 
-Pendente: a infraestrutura OCI ainda nao foi criada e o Prompt 09 continua pendente.
+Pendente: credenciais OCI, primeiro `terraform plan` real, qualquer `apply`, deploy da aplicacao, dominio, HTTPS e evidencias OCI reais.
 
 ## 2. Baseline Git
 
 - Branch: `main`
-- HEAD: `38e8b7f9cbb215add938eb260dfa47dd42238dba`
-- Ultimo commit: `feat(web): adiciona ícone de consulta documental ao hero`
-- Data do ultimo commit: `2026-07-23T13:35:44-03:00`
+- HEAD: `a31c374992de413ca04dbb2f5a603c2d5f1a8f79`
+- Ultimo commit: `docs: atualiza o estado das evidências no README`
+- Data do ultimo commit: `2026-07-23T15:13:07-03:00`
 - Sincronismo `main...origin/main`: `0	0`
 - Workspace limpo: `True`
 - Repositorio: `https://github.com/brodyandre/edudocs-ai-agent-oci`
@@ -29,7 +29,7 @@ Pendente: a infraestrutura OCI ainda nao foi criada e o Prompt 09 continua pende
 ## 4. Testes
 
 - Testes Web nesta auditoria: 55.
-- Testes API nesta auditoria: 100.
+- Testes API nesta auditoria: 109.
 
 ## 5. Avaliacao RAG
 
@@ -72,24 +72,31 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 
 ## 9. Evidencias visuais
 
-- `docs/evidence/home-hero.png`: pendente
-- `docs/evidence/answer-with-sources.png`: pendente
-- `docs/evidence/unsupported-question.png`: pendente
-- `docs/evidence/documents-panel.png`: pendente
-- `docs/evidence/github-actions.png`: pendente
-- `docs/evidence/docker-smoke.png`: pendente
+- `docs/evidence/home-hero.png`: presente
+- `docs/evidence/answer-with-sources.png`: presente
+- `docs/evidence/unsupported-question.png`: presente
+- `docs/evidence/documents-panel.png`: presente
+- `docs/evidence/github-actions.png`: presente
+- `docs/evidence/docker-smoke.png`: presente
 - `docs/evidence/oci-application.png`: reservado para etapa futura
 - `docs/evidence/oci-instance-running.png`: reservado para etapa futura
 
 ## 10. Pendencias antes do Terraform
 
+- Terraform criado: `True`.
+- Provider OCI: `~> 8.23.0`.
+- Modulos: `{'network': True, 'compute': True, 'object_storage': True}`.
+- Cloud-init criado: `True`.
+- Terraform fmt: `True`.
+- Terraform validate: `True`.
+- Politica Terraform: `True`.
 - Futuro: definir credenciais OCI fora do repositorio.
 - Futuro: validar compartment, home region e disponibilidade A1.
-- Futuro: definir CIDR administrativo.
-- Futuro: aplicar estrategia de state.
+- Futuro: definir CIDR administrativo real.
+- Futuro: aplicar estrategia de state antes do primeiro plan real.
 - Nao aplicavel nesta entrega: `terraform plan`, `apply` ou `destroy`.
 
-## 11. Checklist de aprovacao para executar o Prompt 09
+## 11. Checklist de aprovacao antes do primeiro plan real
 
 - [ ] Credenciais OCI configuradas fora do Git.
 - [ ] Compartment validado.

@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -145,7 +144,10 @@ def detect_secrets(paths: list[str], root: Path = ROOT) -> list[Finding]:
         except UnicodeDecodeError:
             continue
         for kind, pattern in SECRET_PATTERNS:
-            if pattern.search(text):
+            matches = list(pattern.finditer(text))
+            if kind == "oci-ocid":
+                matches = [match for match in matches if "substitua" not in match.group(0)]
+            if matches:
                 findings.append(Finding(path, kind, "Remova o segredo e rotacione a credencial se ela for real."))
     return findings
 

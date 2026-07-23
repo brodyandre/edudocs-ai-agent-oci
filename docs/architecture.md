@@ -23,7 +23,7 @@ Projetar uma solução RAG localmente executável, preparada para deploy em OCI,
 - Combinar busca semântica e lexical para melhorar a recuperação.
 - Isolar o provedor de LLM por interface substituível.
 - Permitir testes com provedor falso determinístico, sem consumo externo.
-- Planejar execução local com Docker Compose e deploy em OCI Compute ARM64.
+- Manter execução local com Docker Compose e preparar deploy em OCI Compute ARM64 via Terraform.
 
 ## 6. Requisitos funcionais
 
@@ -59,7 +59,7 @@ O MVP não inclui autenticação, OCR, upload público de documentos, Kubernetes
 - **Índice local**: armazena vetores, metadados e referências de chunks.
 - **Extração de PDFs**: PyMuPDF para leitura página a página.
 - **LLM**: Groq inicialmente, isolado por contrato de provedor.
-- **Infraestrutura**: Docker Compose local, Nginx e Terraform para OCI em etapa futura.
+- **Infraestrutura**: Docker Compose local, Nginx e Terraform OCI validável para Compute ARM64.
 
 ## 10. Diagrama Mermaid da arquitetura
 
@@ -124,11 +124,11 @@ O acesso ao LLM será feito por uma interface de provedor. A primeira implementa
 
 ## 15. Execução local
 
-A execução local planejada usará Docker Compose para subir API, interface e volumes necessários ao índice. Enquanto a implementação não existir, este documento descreve apenas o desenho técnico.
+A execução local usa Docker Compose para subir API, interface, Nginx e volume do índice. A porta pública local padrão é `8080` pelo Nginx.
 
 ## 16. Deploy na OCI
 
-O deploy planejado usa OCI Compute ARM64, Nginx como servidor reverso e Terraform para provisionamento. A configuração deve evitar exposição desnecessária de portas e manter segredos fora do código.
+O deploy planejado usa OCI Compute ARM64, Nginx como servidor reverso e Terraform para provisionamento. O código em `infrastructure/terraform` cria VCN, subnet pública, NSG, instância A1 Flex, cloud-init e bucket privado opcional. Ainda não houve `terraform plan`, `apply` ou deploy real.
 
 ## 17. Compatibilidade ARM64
 

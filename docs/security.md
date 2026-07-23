@@ -77,7 +77,7 @@ Containers de aplicação devem executar com usuário não root sempre que poss�
 
 ## 17. Regras de rede OCI
 
-O deploy planejado deve expor apenas portas necessárias, como HTTP/HTTPS pelo Nginx e SSH restrito. A API interna não deve ser exposta diretamente se puder ficar atrás do proxy.
+O Terraform OCI libera SSH apenas para `admin_cidr` e HTTP/HTTPS para o proxy quando habilitados. Portas de desenvolvimento como 3000, 8000 e 8080 não devem ser expostas diretamente na OCI.
 
 ## 18. SSH restrito
 

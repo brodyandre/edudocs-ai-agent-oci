@@ -1,0 +1,68 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - unzip
+  - jq
+  - ufw
+
+write_files:
+  - path: /usr/local/sbin/edudocs-bootstrap.sh
+    owner: root:root
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      export DEBIAN_FRONTEND=noninteractive
+      LOG_FILE="/var/log/edudocs-cloud-init.log"
+      MARKER="/var/lib/edudocs/cloud-init-complete"
+
+      exec > >(tee -a "$LOG_FILE") 2>&1
+
+      if [ -f "$MARKER" ]; then
+        echo "EduDocs bootstrap already completed."
+        exit 0
+      fi
+
+      install -d -m 0755 /etc/apt/keyrings
+      if [ ! -f /etc/apt/keyrings/docker.gpg ]; then
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /tmp/docker.asc
+        gpg --dearmor -o /etc/apt/keyrings/docker.gpg /tmp/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.gpg
+        rm -f /tmp/docker.asc
+      fi
+
+      ARCH="$(dpkg --print-architecture)"
+      CODENAME="$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")"
+      printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu %s stable\n' "$ARCH" "$CODENAME" > /etc/apt/sources.list.d/docker.list
+
+      apt-get update
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+      systemctl enable docker
+      systemctl start docker
+      usermod -aG docker ubuntu || true
+
+      install -d -m 0755 /opt/edudocs
+      install -d -m 0750 /opt/edudocs/config
+      install -d -m 0750 /opt/edudocs/data
+      install -d -m 0750 /opt/edudocs/data/index
+      install -d -m 0750 /opt/edudocs/logs
+      chown -R ubuntu:ubuntu /opt/edudocs
+
+      install -d -m 0755 /var/lib/edudocs
+      printf 'project=%s\ncompleted_at=%s\n' "${project_name}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MARKER"
+      chmod 0644 "$MARKER"
+
+      echo "EduDocs bootstrap completed. Application deploy remains a manual future step."
+
+runcmd:
+  - [bash, /usr/local/sbin/edudocs-bootstrap.sh]
+
+final_message: "EduDocs OCI base server prepared. Check /var/log/edudocs-cloud-init.log and /var/lib/edudocs/cloud-init-complete."

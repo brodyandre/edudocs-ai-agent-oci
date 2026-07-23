@@ -1,0 +1,25 @@
+# Copie este arquivo para terraform.tfvars somente no ambiente local.
+# O arquivo terraform.tfvars real deve permanecer fora do Git.
+
+tenancy_ocid     = "ocid1.tenancy.oc1..substitua"
+compartment_ocid = "ocid1.compartment.oc1..substitua"
+region           = "substitua-pela-home-region"
+
+# Perfil local do arquivo ~/.oci/config. Nao versione o arquivo de configuracao OCI.
+config_file_profile = "DEFAULT"
+
+# Use o IP publico administrativo real em /32, nunca 0.0.0.0/0.
+admin_cidr = "203.0.113.10/32"
+
+# Informe a chave publica SSH local que sera copiada para a VM.
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+
+# Opcional: fixe uma imagem ARM Ubuntu validada manualmente antes do primeiro plan real.
+# image_ocid = "ocid1.image.oc1..substitua"
+
+# Opcional: fixe o availability domain apos confirmar capacidade A1 na tenancy.
+# availability_domain = "abcD:SA-SAOPAULO-1-AD-1"
+
+# Opcional: habilite um bucket privado de backup apenas quando houver estrategia clara de uso.
+# create_backup_bucket = true
+# backup_bucket_name   = "edudocs-ai-production-backup"

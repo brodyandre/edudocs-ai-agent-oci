@@ -2,11 +2,11 @@
 
 ## 1. Objetivo
 
-A integração contínua valida automaticamente qualidade geral, corpus, API, avaliação RAG, web e containers. Esta etapa não publica imagens, não executa deploy, não acessa OCI e não chama Groq.
+A integração contínua valida automaticamente qualidade geral, corpus, API, avaliação RAG, web, containers e Terraform OCI. Esta etapa não publica imagens, não executa deploy, não acessa OCI e não chama Groq.
 
 ## 2. Workflows
 
-- `Quality`: valida UTF-8, whitespace, higiene do repositório, JSON, links relativos do README, corpus e Docker Compose.
+- `Quality`: valida UTF-8, whitespace, higiene do repositório, JSON, links relativos do README, corpus, Docker Compose, Terraform e política OCI.
 - `API CI`: valida dependências Python, corpus, índice fake, Ruff, Pytest e avaliação RAG estrita.
 - `Web CI`: valida dependências Node, lint, typecheck, testes, build Next.js e política npm audit.
 - `Containers CI`: valida Compose/Nginx, builds Docker `amd64`/`arm64` e smoke integrado.
@@ -62,7 +62,7 @@ make ci
 make docker-ci
 ```
 
-`make ci` cobre as validações principais sem publicar nem fazer deploy. `make docker-ci` executa build local, Compose e smoke integrado.
+`make ci` cobre as validações principais sem publicar, acessar OCI nem fazer deploy. `make docker-ci` executa build local, Compose e smoke integrado.
 
 ## 15. Como investigar falhas
 
@@ -71,6 +71,8 @@ Leia primeiro o job e a etapa com falha. Para containers, consulte os logs do sm
 ## 16. Limitações
 
 Os workflows não publicam artefatos grandes, não fazem upload do índice e não geram cobertura. A validação de links cobre links relativos do README e não depende de links externos.
+
+Terraform no CI executa apenas `fmt`, `init -backend=false`, `validate` e `scripts/check_terraform_policy.py`. Não há `plan`, `apply`, `destroy`, credenciais OCI ou permissões de escrita.
 
 ## 17. O que não é feito nesta etapa
 

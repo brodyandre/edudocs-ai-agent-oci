@@ -1,4 +1,4 @@
-.PHONY: setup quality corpus index lint test evaluate web-build compose-check build up down restart ps logs smoke docker-ci project-audit readme-evidence pre-terraform ci clean
+.PHONY: setup quality corpus index lint test evaluate web-build compose-check terraform-fmt terraform-init terraform-validate terraform-policy terraform-check build up down restart ps logs smoke docker-ci project-audit readme-evidence pre-terraform ci clean
 
 PYTHON ?= python3
 VENV_PYTHON ?= .venv/bin/python
@@ -43,6 +43,20 @@ compose-check:
 	$(COMPOSE) config
 	$(COMPOSE) config --format json > $(COMPOSE_CONFIG_JSON)
 	$(PYTHON) scripts/validate_compose_policy.py $(COMPOSE_CONFIG_JSON) infrastructure/nginx/nginx.conf
+
+terraform-fmt:
+	terraform -chdir=infrastructure/terraform fmt -recursive -check
+
+terraform-init:
+	terraform -chdir=infrastructure/terraform init -backend=false
+
+terraform-validate:
+	terraform -chdir=infrastructure/terraform validate
+
+terraform-policy:
+	$(PYTHON) scripts/check_terraform_policy.py
+
+terraform-check: terraform-fmt terraform-init terraform-validate terraform-policy
 
 build:
 	$(COMPOSE) build
@@ -95,7 +109,7 @@ pre-terraform:
 	$(PYTHON) scripts/check_utf8.py
 	git diff --check
 
-ci: quality corpus lint test evaluate web-build
+ci: quality corpus lint test evaluate web-build terraform-check
 
 clean:
 	$(PYTHON) -c "import pathlib, shutil; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__') if p.is_dir()]; [shutil.rmtree(p, ignore_errors=True) for p in map(pathlib.Path, ['.pytest_cache', '.ruff_cache', 'apps/web/.next'])]"

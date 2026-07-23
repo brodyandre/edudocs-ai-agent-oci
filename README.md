@@ -193,12 +193,12 @@ flowchart LR
     end
 
     subgraph Futuro OCI
-      OCI[Compute ARM64 planejado]
-      TF[Terraform planejado]
+      OCI[Compute ARM64 pendente]
+      TF[Terraform validavel]
     end
 ```
 
-No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única porta pública padrão é `8080`, servida pelo Nginx. A infraestrutura OCI ainda é planejamento: não há Terraform criado nem deploy publicado nesta etapa.
+No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única porta pública padrão é `8080`, servida pelo Nginx. A infraestrutura OCI agora possui Terraform validável para VCN, Compute ARM64, cloud-init e bucket privado opcional, mas ainda não houve `plan`, `apply` nem deploy publicado.
 
 [Voltar ao índice](#índice)
 
@@ -213,7 +213,7 @@ No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única
 | Testes | pytest `>=8.0,<9`, Ruff `>=0.8,<0.14`, Vitest `^3.2.4` |
 | Containers | Docker Compose, Nginx unprivileged, imagens locais para API e web |
 | CI/CD | Quality, API CI, Web CI e Containers CI no GitHub Actions |
-| Infraestrutura futura | Terraform e OCI Compute ARM64, ainda não iniciados nesta entrega |
+| Infraestrutura OCI | Terraform `>=1.15,<1.16`, provider `oracle/oci ~> 8.23`, Compute ARM64 A1 Flex, cloud-init e política estática |
 
 [Voltar ao índice](#índice)
 
@@ -345,7 +345,7 @@ Limitações do MVP: sem autenticação, sem rate limit persistente, sem histór
 │   └── web/        # Next.js, componentes, estilos e testes de interface
 ├── corpus/         # Manifesto, PDFs fictícios, fontes e dataset de avaliação
 ├── docs/           # Documentação técnica, auditorias e guia de screenshots
-├── infrastructure/ # Nginx local
+├── infrastructure/ # Nginx local, cloud-init e Terraform OCI
 ├── scripts/        # Validadores, auditoria, smoke test e sincronização do README
 ├── docker-compose.yml
 └── Makefile
@@ -368,11 +368,15 @@ Concluído:
 - Docker Compose com Nginx.
 - CI para qualidade, API, web e containers.
 - Builds de containers para amd64 e ARM64 no CI.
+- Terraform OCI com módulos de rede, compute e object storage opcional.
+- Cloud-init para preparar a VM base sem iniciar deploy.
+- Validações Terraform, política de custo e CI sem credenciais.
 
 Próximo:
 
-- Criar Terraform.
-- Provisionar OCI.
+- Confirmar credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state.
+- Executar primeiro `terraform plan` real somente após aprovação.
+- Provisionar OCI somente após revisão do plano.
 - Validar Groq real fora do ambiente de teste.
 - Configurar domínio e HTTPS.
 - Produzir evidências reais do deploy.
@@ -381,9 +385,15 @@ Próximo:
 
 ## Infraestrutura OCI
 
-A OCI é o próximo passo planejado. Esta entrega prepara a documentação e a auditoria pré-Terraform, mas não cria arquivos Terraform, não executa `plan`, `apply` ou `destroy`, e não afirma deploy ativo.
+A OCI possui código Terraform criado em `infrastructure/terraform`, com módulos de rede, compute, object storage opcional e cloud-init em `infrastructure/cloud-init/app-server.yaml.tftpl`. Esta etapa valida o código e a política, mas não executa `plan`, `apply` ou `destroy`, e não afirma deploy ativo.
 
 O Prompt 09 pode criar e validar o código Terraform sem credenciais reais. Credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state devem ser confirmados antes do primeiro `terraform plan` real e antes de qualquer `apply`.
+
+Documentação relacionada:
+
+- [Terraform OCI](infrastructure/terraform/README.md)
+- [Deployment OCI](docs/deployment-oci.md)
+- [Controles de custo](docs/cost-controls.md)
 
 <!-- EVIDENCE:OCI_APP:START -->
 > **Captura reservada para etapa futura:** `docs/evidence/oci-application.png`.
@@ -407,6 +417,7 @@ O Prompt 09 pode criar e validar o código Terraform sem credenciais reais. Cred
 | Agente RAG | Concluído para o MVP local |
 | Corpus PDF | Concluído com documentos fictícios |
 | Interface gráfica | Concluída para uso local |
+| Terraform OCI | Concluído e validado sem credenciais reais |
 | Deploy OCI | Pendente |
 | Screenshots locais | Concluídos e inseridos contextualmente no README |
 | Evidência OCI | Reservada para etapa futura |
@@ -421,19 +432,20 @@ O Prompt 09 pode criar e validar o código Terraform sem credenciais reais. Cred
 - Não há autenticação.
 - O histórico não é persistido entre sessões.
 - O provedor Groq real ainda não foi validado nesta etapa.
-- A OCI ainda não foi implantada.
+- A OCI ainda não foi implantada; somente o código Terraform foi criado e validado.
 - As métricas `fact_coverage_rate`, `complete_document_citation_rate` e `page_recall_at_k` indicam pontos reais de melhoria.
 
 [Voltar ao índice](#índice)
 
 ## Roadmap
 
-1. Fechar documentação e auditoria pré-Terraform.
-2. Criar infraestrutura Terraform para OCI sem versionar segredos.
-3. Publicar a aplicação em Compute ARM64.
-4. Configurar domínio, HTTPS e variáveis seguras.
-5. Produzir capturas reais de aplicação e infraestrutura.
-6. Reavaliar recuperação, cobertura factual e citações multi-documento.
+1. Confirmar credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e state.
+2. Executar e revisar o primeiro `terraform plan` real.
+3. Provisionar OCI somente após aprovação do plano.
+4. Publicar a aplicação em Compute ARM64.
+5. Configurar domínio, HTTPS e variáveis seguras.
+6. Produzir capturas reais de aplicação e infraestrutura.
+7. Reavaliar recuperação, cobertura factual e citações multi-documento.
 
 [Voltar ao índice](#índice)
 

@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-23T17:50:07Z",
+  "generated_at": "2026-07-23T18:35:39Z",
   "repository": {
     "name": "edudocs-ai-agent-oci",
     "url": "https://github.com/brodyandre/edudocs-ai-agent-oci"
   },
   "git": {
     "branch": "main",
-    "head": "38e8b7f9cbb215add938eb260dfa47dd42238dba",
-    "last_commit_message": "feat(web): adiciona ícone de consulta documental ao hero",
-    "last_commit_date": "2026-07-23T13:35:44-03:00",
+    "head": "a31c374992de413ca04dbb2f5a603c2d5f1a8f79",
+    "last_commit_message": "docs: atualiza o estado das evidências no README",
+    "last_commit_date": "2026-07-23T15:13:07-03:00",
     "sync_main_origin": "0\t0",
     "workspace_clean": true,
     "status_short": "",
@@ -90,7 +90,7 @@
     "pytest": {
       "ok": true,
       "returncode": 0,
-      "tests": 100
+      "tests": 109
     }
   },
   "corpus": {
@@ -254,27 +254,27 @@
   "evidence": {
     "home": {
       "path": "docs/evidence/home-hero.png",
-      "status": "pendente"
+      "status": "presente"
     },
     "answer": {
       "path": "docs/evidence/answer-with-sources.png",
-      "status": "pendente"
+      "status": "presente"
     },
     "unsupported": {
       "path": "docs/evidence/unsupported-question.png",
-      "status": "pendente"
+      "status": "presente"
     },
     "documents": {
       "path": "docs/evidence/documents-panel.png",
-      "status": "pendente"
+      "status": "presente"
     },
     "github_actions": {
       "path": "docs/evidence/github-actions.png",
-      "status": "pendente"
+      "status": "presente"
     },
     "docker_smoke": {
       "path": "docs/evidence/docker-smoke.png",
-      "status": "pendente"
+      "status": "presente"
     },
     "oci_application": {
       "path": "docs/evidence/oci-application.png",
@@ -288,14 +288,27 @@
   "terraform_readiness": {
     "terraform_installed": true,
     "terraform_version": "Terraform v1.15.8",
-    "infrastructure_created": false,
+    "infrastructure_created": true,
+    "required_version": ">= 1.15.0, < 1.16.0",
+    "oci_provider": "~> 8.23.0",
+    "modules": {
+      "network": true,
+      "compute": true,
+      "object_storage": true
+    },
+    "cloud_init_created": true,
+    "terraform_fmt_ok": true,
+    "terraform_validate_ok": true,
+    "terraform_policy_ok": true,
     "oci_credentials_verified": false,
     "compartment_verified": false,
     "home_region_verified": false,
     "a1_capacity_verified": false,
     "admin_cidr_defined": false,
     "state_strategy_applied": false,
-    "prompt_09_pending": true
+    "terraform_plan_executed": false,
+    "terraform_apply_executed": false,
+    "prompt_09_pending": false
   },
   "warnings": [],
   "format_version": "1"

@@ -16,6 +16,7 @@
 | Exemplos de respostas | Pendente | Respostas com citações e recusas quando necessário. |
 | Agente funcional | Pendente | Fluxo RAG executável com provedor real e falso. |
 | Leitura e processamento de PDF | Pendente | Ingestão local validada com metadados e índice. |
+| Terraform OCI | Concluído | Código validável sem credenciais reais, sem `plan` e sem `apply`. |
 | Deploy OCI | Pendente | Infraestrutura aplicada e aplicação disponível. |
 | Link público | Pendente | URL pública real após deploy. |
 | Captura de tela | Pendente | Evidência visual salva em `docs/evidence/`. |
@@ -31,7 +32,7 @@
 - Testes: usar provedor falso determinístico e evitar consumo externo nos testes.
 - Interface: criar fluxo simples para perguntar e visualizar resposta com fontes.
 - Execução local: validar Docker Compose.
-- Deploy: provisionar OCI com Terraform, configurar Nginx e publicar HTTPS quando aplicável.
+- Deploy: revisar primeiro plan real, provisionar OCI com Terraform, configurar Nginx e publicar HTTPS quando aplicável.
 - Evidências: registrar comandos, exemplos, link público e captura de tela final.
 
 ## Definição de pronto
@@ -46,7 +47,7 @@ Uma entrega é considerada pronta quando possui implementação ou documentaçã
 - Provedor falso antes de testes confiáveis.
 - API antes da interface integrada.
 - Docker Compose antes do deploy.
-- Terraform e Nginx antes do link público.
+- Terraform e Nginx antes do link público; credenciais, compartment, home region, capacidade A1, CIDR administrativo e state antes do primeiro plan real.
 
 ## Riscos
 
@@ -69,8 +70,9 @@ Uma entrega é considerada pronta quando possui implementação ou documentaçã
 8. Criar API FastAPI.
 9. Criar interface Next.js.
 10. Validar execução local com Docker Compose.
-11. Preparar Terraform, Nginx e deploy OCI.
-12. Registrar evidências finais.
+11. Validar Terraform OCI sem credenciais reais.
+12. Confirmar credenciais OCI e revisar o primeiro plan real.
+13. Provisionar OCI, configurar Nginx e registrar evidências finais.
 
 ## Critérios de aceite
 
