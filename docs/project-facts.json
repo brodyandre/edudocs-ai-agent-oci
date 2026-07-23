@@ -1,0 +1,302 @@
+{
+  "generated_at": "2026-07-23T17:33:09Z",
+  "repository": {
+    "name": "edudocs-ai-agent-oci",
+    "url": "https://github.com/brodyandre/edudocs-ai-agent-oci"
+  },
+  "git": {
+    "branch": "main",
+    "head": "5feac28993800b4e0233663bd6ad450d72740b62",
+    "last_commit_message": "docs: audita o projeto e transforma o README em vitrine",
+    "last_commit_date": "2026-07-23T14:35:58-03:00",
+    "sync_main_origin": "1\t0",
+    "workspace_clean": true,
+    "status_short": "",
+    "repository_url": "https://github.com/brodyandre/edudocs-ai-agent-oci.git",
+    "github_url": "https://github.com/brodyandre/edudocs-ai-agent-oci",
+    "visibility": "PUBLIC",
+    "default_branch": "main"
+  },
+  "tools": {
+    "git": {
+      "available": true,
+      "version": "git version 2.34.1"
+    },
+    "python": {
+      "available": true,
+      "version": "Python 3.10.12"
+    },
+    "node": {
+      "available": true,
+      "version": "v20.20.2"
+    },
+    "npm": {
+      "available": true,
+      "version": "10.8.2"
+    },
+    "docker": {
+      "available": true,
+      "version": "Docker version 29.5.3, build d1c06ef"
+    },
+    "docker_compose": {
+      "available": true,
+      "version": "Docker Compose version v5.1.4"
+    },
+    "github_cli": {
+      "available": true,
+      "version": "gh version 2.96.0 (2026-07-02)"
+    },
+    "terraform": {
+      "available": true,
+      "version": "Terraform v1.15.8"
+    }
+  },
+  "web": {
+    "next": "^15.3.5",
+    "react": "^19.1.0",
+    "typescript": "^5.8.3",
+    "tailwind": "^3.4.17",
+    "vitest": "^3.2.4",
+    "lint": {
+      "ok": true,
+      "returncode": 0
+    },
+    "typecheck": {
+      "ok": true,
+      "returncode": 0
+    },
+    "test": {
+      "ok": true,
+      "returncode": 0,
+      "tests": 55
+    },
+    "build": {
+      "ok": true,
+      "returncode": 0
+    }
+  },
+  "api": {
+    "python": ">=3.10,<3.13",
+    "fastapi": ">=0.115,<0.116",
+    "langgraph": "==0.2.76",
+    "groq": ">=0.13,<1",
+    "pymupdf": "==1.28.0",
+    "numpy": ">=1.26,<2.0",
+    "scikit_learn": ">=1.4,<1.7",
+    "ruff": {
+      "ok": true,
+      "returncode": 0
+    },
+    "pytest": {
+      "ok": true,
+      "returncode": 0,
+      "tests": 100
+    }
+  },
+  "corpus": {
+    "enabled_documents": 5,
+    "documents": [
+      {
+        "title": "Regulamento do Estudante",
+        "version": "1.0",
+        "category": "regulamento"
+      },
+      {
+        "title": "Política de Cancelamento e Reembolso",
+        "version": "1.0",
+        "category": "cancelamento"
+      },
+      {
+        "title": "Guia de Certificados",
+        "version": "1.0",
+        "category": "certificados"
+      },
+      {
+        "title": "FAQ de Cursos e Matrículas",
+        "version": "1.0",
+        "category": "faq"
+      },
+      {
+        "title": "Política de Privacidade",
+        "version": "1.0",
+        "category": "privacidade"
+      }
+    ],
+    "total_pages": 23,
+    "chunks": 41,
+    "corpus_fingerprint": "1180d04b0a336934a8a9aa2af847117728010aa8f40ae2f833be8158a7f502b9",
+    "index_fingerprint": "6ff3032e04d56c4c6887685291b984bb2b4154c22046b9ac7a121b9d4422a721"
+  },
+  "evaluation": {
+    "questions": 28,
+    "categories": {
+      "direct": 15,
+      "multi_document": 5,
+      "prompt_injection": 3,
+      "unsupported": 5
+    },
+    "metrics": {
+      "retrieval_hit_rate": 1.0,
+      "document_recall_at_k": 0.975,
+      "exact_document_set_rate": 0.95,
+      "page_hit_rate": 0.85,
+      "page_recall_at_k": 0.7583333333333333,
+      "mean_reciprocal_rank": 0.875,
+      "answerable_accuracy": 1.0,
+      "unsupported_rejection_rate": 1.0,
+      "false_answer_rate": 0.0,
+      "supported_answer_rate": 1.0,
+      "citation_validity_rate": 1.0,
+      "prompt_injection_resistance_rate": 1.0,
+      "fact_coverage_rate": 0.0,
+      "complete_document_citation_rate": 0.2
+    },
+    "limitations": {
+      "fact_coverage_rate": 0.0,
+      "complete_document_citation_rate": 0.2,
+      "page_recall_at_k": 0.7583333333333333
+    }
+  },
+  "docker": {
+    "services": [
+      "api",
+      "nginx",
+      "web"
+    ],
+    "public_ports": {
+      "nginx": [
+        "8080:8080"
+      ]
+    },
+    "internal_ports": {
+      "api": [
+        "8000"
+      ],
+      "web": [
+        "3000"
+      ]
+    },
+    "index_volume": true,
+    "non_root_controls": {
+      "api": {
+        "read_only": true,
+        "cap_drop_all": true,
+        "no_new_privileges": true
+      },
+      "nginx": {
+        "read_only": true,
+        "cap_drop_all": true,
+        "no_new_privileges": true
+      },
+      "web": {
+        "read_only": true,
+        "cap_drop_all": true,
+        "no_new_privileges": true
+      }
+    },
+    "images": {
+      "api": "edudocs-ai-api:local",
+      "nginx": "nginxinc/nginx-unprivileged:1.27.4-alpine",
+      "web": "edudocs-ai-web:local"
+    },
+    "amd64_compatible": true,
+    "arm64_compatible": true,
+    "smoke_test": {
+      "ok": true,
+      "returncode": 0
+    }
+  },
+  "github_actions": {
+    "latest": {
+      "Web CI": {
+        "conclusion": "success",
+        "createdAt": "2026-07-23T16:40:18Z",
+        "databaseId": 30026114488,
+        "headSha": "38e8b7f9cbb215add938eb260dfa47dd42238dba",
+        "name": "Web CI",
+        "status": "completed",
+        "url": "https://github.com/brodyandre/edudocs-ai-agent-oci/actions/runs/30026114488",
+        "workflowName": "Web CI"
+      },
+      "Containers CI": {
+        "conclusion": "success",
+        "createdAt": "2026-07-23T16:40:18Z",
+        "databaseId": 30026114462,
+        "headSha": "38e8b7f9cbb215add938eb260dfa47dd42238dba",
+        "name": "Containers CI",
+        "status": "completed",
+        "url": "https://github.com/brodyandre/edudocs-ai-agent-oci/actions/runs/30026114462",
+        "workflowName": "Containers CI"
+      },
+      "Quality": {
+        "conclusion": "success",
+        "createdAt": "2026-07-23T16:40:18Z",
+        "databaseId": 30026113506,
+        "headSha": "38e8b7f9cbb215add938eb260dfa47dd42238dba",
+        "name": "Quality",
+        "status": "completed",
+        "url": "https://github.com/brodyandre/edudocs-ai-agent-oci/actions/runs/30026113506",
+        "workflowName": "Quality"
+      },
+      "API CI": {
+        "conclusion": "success",
+        "createdAt": "2026-07-23T16:04:06Z",
+        "databaseId": 30023441599,
+        "headSha": "a525366f4013c6971cca82086ba626d27aa02dc4",
+        "name": "API CI",
+        "status": "completed",
+        "url": "https://github.com/brodyandre/edudocs-ai-agent-oci/actions/runs/30023441599",
+        "workflowName": "API CI"
+      }
+    },
+    "runs_checked": 15
+  },
+  "evidence": {
+    "home": {
+      "path": "docs/evidence/home-hero.png",
+      "status": "pendente"
+    },
+    "answer": {
+      "path": "docs/evidence/answer-with-sources.png",
+      "status": "pendente"
+    },
+    "unsupported": {
+      "path": "docs/evidence/unsupported-question.png",
+      "status": "pendente"
+    },
+    "documents": {
+      "path": "docs/evidence/documents-panel.png",
+      "status": "pendente"
+    },
+    "github_actions": {
+      "path": "docs/evidence/github-actions.png",
+      "status": "pendente"
+    },
+    "docker_smoke": {
+      "path": "docs/evidence/docker-smoke.png",
+      "status": "pendente"
+    },
+    "oci_application": {
+      "path": "docs/evidence/oci-application.png",
+      "status": "reservado para etapa futura"
+    },
+    "oci_instance": {
+      "path": "docs/evidence/oci-instance-running.png",
+      "status": "reservado para etapa futura"
+    }
+  },
+  "terraform_readiness": {
+    "terraform_installed": true,
+    "terraform_version": "Terraform v1.15.8",
+    "infrastructure_created": false,
+    "oci_credentials_verified": false,
+    "compartment_verified": false,
+    "home_region_verified": false,
+    "a1_capacity_verified": false,
+    "admin_cidr_defined": false,
+    "state_strategy_applied": false,
+    "prompt_09_pending": true
+  },
+  "warnings": [],
+  "format_version": "1"
+}

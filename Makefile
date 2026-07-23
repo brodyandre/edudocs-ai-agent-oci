@@ -1,4 +1,4 @@
-.PHONY: setup quality corpus index lint test evaluate web-build compose-check build up down restart ps logs smoke docker-ci ci clean
+.PHONY: setup quality corpus index lint test evaluate web-build compose-check build up down restart ps logs smoke docker-ci project-audit readme-evidence pre-terraform ci clean
 
 PYTHON ?= python3
 VENV_PYTHON ?= .venv/bin/python
@@ -65,6 +65,35 @@ smoke:
 	SMOKE_BASE_URL=$(SMOKE_BASE_URL) $(PYTHON) scripts/smoke_test.py
 
 docker-ci: build up smoke down
+
+project-audit:
+	$(PYTHON) scripts/audit_project_readiness.py
+	$(PYTHON) scripts/check_utf8.py
+
+readme-evidence:
+	$(PYTHON) scripts/sync_readme_evidence.py
+	$(PYTHON) scripts/check_readme.py
+
+pre-terraform:
+	$(PYTHON) scripts/check_repository_hygiene.py
+	$(PYTHON) scripts/validate_corpus.py
+	$(VENV_PYTHON) -m ruff check apps/api
+	$(VENV_PYTHON) -m pytest apps/api/tests
+	cd apps/api && ../../$(VENV_PYTHON) -m app.evaluation.cli run --strict --output-json /tmp/edudocs-pre-terraform-evaluation.json --output-markdown /tmp/edudocs-pre-terraform-evaluation.md
+	npm --prefix apps/web run lint
+	npm --prefix apps/web run typecheck
+	npm --prefix apps/web run test
+	npm --prefix apps/web run build
+	$(COMPOSE) config
+	$(COMPOSE) down
+	$(COMPOSE) up -d --build
+	SMOKE_BASE_URL=$(SMOKE_BASE_URL) $(PYTHON) scripts/smoke_test.py
+	AUDIT_RUN_SMOKE=1 $(PYTHON) scripts/audit_project_readiness.py
+	$(COMPOSE) down
+	$(PYTHON) scripts/sync_readme_evidence.py
+	$(PYTHON) scripts/check_readme.py
+	$(PYTHON) scripts/check_utf8.py
+	git diff --check
 
 ci: quality corpus lint test evaluate web-build
 
