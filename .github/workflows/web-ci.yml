@@ -1,0 +1,83 @@
+name: Web CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/web-ci.yml"
+      - "apps/web/**"
+      - "scripts/validate_npm_audit_policy.py"
+      - "Makefile"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/web-ci.yml"
+      - "apps/web/**"
+      - "scripts/validate_npm_audit_policy.py"
+      - "Makefile"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  web:
+    name: Web quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install web dependencies
+        run: npm --prefix apps/web ci
+
+      - name: Lint
+        run: npm --prefix apps/web run lint
+
+      - name: Typecheck
+        run: npm --prefix apps/web run typecheck
+
+      - name: Test
+        run: npm --prefix apps/web run test
+
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ""
+        run: npm --prefix apps/web run build
+
+      - name: Audit production dependencies
+        shell: bash
+        run: |
+          set +e
+          npm --prefix apps/web audit --omit=dev --json > "$RUNNER_TEMP/npm-audit-production.json"
+          audit_status=$?
+          set -e
+          python3 scripts/validate_npm_audit_policy.py \
+            "$RUNNER_TEMP/npm-audit-production.json" \
+            --scope production \
+            --npm-exit-code "$audit_status"
+
+      - name: Audit all dependencies
+        shell: bash
+        run: |
+          set +e
+          npm --prefix apps/web audit --json > "$RUNNER_TEMP/npm-audit-all.json"
+          audit_status=$?
+          set -e
+          python3 scripts/validate_npm_audit_policy.py \
+            "$RUNNER_TEMP/npm-audit-all.json" \
+            --scope all \
+            --npm-exit-code "$audit_status"

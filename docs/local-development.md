@@ -96,6 +96,8 @@ O smoke test valida a home HTML, `/health`, `/ready`, `/api/documents` e quatro 
 ## Comandos úteis
 
 ```bash
+make ci
+make docker-ci
 make lint
 make test
 make evaluate
@@ -104,3 +106,5 @@ make logs
 make restart
 make clean
 ```
+
+`make ci` executa validações locais de qualidade, corpus, API, web, avaliação RAG com saída temporária e Docker Compose config. `make docker-ci` executa build local dos containers, sobe o Compose, roda o smoke e desliga o ambiente; ele não publica imagens nem executa deploy.

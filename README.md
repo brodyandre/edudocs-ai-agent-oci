@@ -1,5 +1,10 @@
 # EduDocs AI
 
+[![Quality](https://github.com/brodyandre/edudocs-ai-agent-oci/actions/workflows/quality.yml/badge.svg)](https://github.com/brodyandre/edudocs-ai-agent-oci/actions/workflows/quality.yml)
+[![API CI](https://github.com/brodyandre/edudocs-ai-agent-oci/actions/workflows/api-ci.yml/badge.svg)](https://github.com/brodyandre/edudocs-ai-agent-oci/actions/workflows/api-ci.yml)
+[![Web CI](https://github.com/brodyandre/edudocs-ai-agent-oci/actions/workflows/web-ci.yml/badge.svg)](https://github.com/brodyandre/edudocs-ai-agent-oci/actions/workflows/web-ci.yml)
+[![Containers CI](https://github.com/brodyandre/edudocs-ai-agent-oci/actions/workflows/containers-ci.yml/badge.svg)](https://github.com/brodyandre/edudocs-ai-agent-oci/actions/workflows/containers-ci.yml)
+
 EduDocs AI é um projeto em desenvolvimento para um agente RAG voltado a consultas sobre documentos educacionais fictícios. O repositório prepara a base técnica do Challenge e já contém API, agente, ingestão local, avaliação determinística e interface web para consulta do corpus.
 
 ## Problema
@@ -43,6 +48,10 @@ npm --prefix apps/web run dev
 
 Consulte [apps/web/README.md](apps/web/README.md) para instalação, variáveis, validações, integração e limitações.
 
+## Integração contínua
+
+O repositório usa GitHub Actions para validar qualidade geral, API, web e containers sem publicar imagens, sem deploy e sem segredos de produção. Consulte [docs/ci-cd.md](docs/ci-cd.md).
+
 ## Execução integrada com Docker
 
 O ambiente Docker local sobe API, web e Nginx em uma rede interna. A única porta publicada por padrão é `8080`, servida pelo Nginx.
@@ -71,4 +80,5 @@ A aplicação integrada fica em `http://localhost:8080`. Consulte [docs/local-de
 - [Arquitetura](docs/architecture.md)
 - [Pipeline RAG](docs/rag-pipeline.md)
 - [Segurança](docs/security.md)
+- [CI/CD](docs/ci-cd.md)
 - [Plano de entregas](docs/delivery-plan.md)

@@ -1,0 +1,148 @@
+name: Containers CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".dockerignore"
+      - ".github/workflows/containers-ci.yml"
+      - "Makefile"
+      - "apps/api/**"
+      - "apps/web/**"
+      - "corpus/**"
+      - "docker-compose*.yml"
+      - "infrastructure/nginx/**"
+      - "scripts/smoke_test.py"
+      - "scripts/validate_compose_policy.py"
+      - "scripts/validate_corpus.py"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".dockerignore"
+      - ".github/workflows/containers-ci.yml"
+      - "Makefile"
+      - "apps/api/**"
+      - "apps/web/**"
+      - "corpus/**"
+      - "docker-compose*.yml"
+      - "infrastructure/nginx/**"
+      - "scripts/smoke_test.py"
+      - "scripts/validate_compose_policy.py"
+      - "scripts/validate_corpus.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  EDUDOCS_LLM_PROVIDER: fake
+  EDUDOCS_EMBEDDING_PROVIDER: fake
+
+jobs:
+  compose-and-nginx:
+    name: Compose and Nginx
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose syntax
+        run: docker compose config
+
+      - name: Validate Docker Compose policy
+        run: |
+          docker compose config --format json > "$RUNNER_TEMP/compose-config.json"
+          python3 scripts/validate_compose_policy.py "$RUNNER_TEMP/compose-config.json" infrastructure/nginx/nginx.conf
+
+      - name: Validate Nginx syntax
+        run: |
+          docker run --rm \
+            --add-host api:127.0.0.1 \
+            --add-host web:127.0.0.1 \
+            -v "$PWD/infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            nginxinc/nginx-unprivileged:1.27.4-alpine \
+            nginx -t
+
+  build-images:
+    name: Build ${{ matrix.component }} ${{ matrix.platform }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    needs: compose-and-nginx
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: api
+            dockerfile: apps/api/Dockerfile
+            image: edudocs-ai-api
+            platform: linux/amd64
+            suffix: amd64
+          - component: api
+            dockerfile: apps/api/Dockerfile
+            image: edudocs-ai-api
+            platform: linux/arm64
+            suffix: arm64
+          - component: web
+            dockerfile: apps/web/Dockerfile
+            image: edudocs-ai-web
+            platform: linux/amd64
+            suffix: amd64
+          - component: web
+            dockerfile: apps/web/Dockerfile
+            image: edudocs-ai-web
+            platform: linux/arm64
+            suffix: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platform }}
+          push: false
+          tags: ${{ matrix.image }}:${{ github.sha }}-${{ matrix.suffix }}
+          cache-from: type=gha,scope=${{ matrix.component }}-${{ matrix.suffix }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}-${{ matrix.suffix }}
+
+  smoke:
+    name: Integrated smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: compose-and-nginx
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and start local stack
+        run: docker compose up -d --build
+
+      - name: Show container status
+        run: docker compose ps
+
+      - name: Run smoke test
+        run: python3 scripts/smoke_test.py
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs --tail=200
+
+      - name: Stop local stack
+        if: always()
+        run: docker compose down -v

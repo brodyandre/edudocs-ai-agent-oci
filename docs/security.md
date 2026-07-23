@@ -60,22 +60,12 @@ Dependências devem ser mínimas, fixadas quando apropriado e revisadas antes da
 
 ## 14. Auditoria npm
 
-Auditoria executada em 22 de julho de 2026:
+Auditoria executada em 23 de julho de 2026:
 
-- `npm --prefix apps/web audit --omit=dev`: 2 vulnerabilidades moderadas em dependência de produção.
-- `npm --prefix apps/web audit`: 2 vulnerabilidades moderadas no conjunto completo.
+- `npm --prefix apps/web audit --omit=dev`: 0 vulnerabilidades.
+- `npm --prefix apps/web audit`: 0 vulnerabilidades.
 
-Achado:
-
-- Pacote vulnerável: `postcss <8.5.10`.
-- Cadeia: `next -> postcss`, em `node_modules/next/node_modules/postcss`.
-- Severidade: moderada.
-- Advisory: `GHSA-qx2v-qp2m-jg93`, XSS por escape insuficiente de `</style>` na saída CSS.
-- Escopo: produção e desenvolvimento, porque `next` é dependência de produção da web.
-- Correção indicada pelo npm: `npm audit fix --force`.
-- Impacto da correção indicada: quebra compatibilidade, pois o npm informa instalação de `next@9.3.3`.
-
-Decisão: aceitar temporariamente o achado sem aplicar `npm audit fix --force`. A correção automática sugerida pelo npm é quebradora e incompatível com a aplicação Next.js atual. A mitigação registrada é manter o override explícito de `postcss` no `package.json`, acompanhar atualização compatível do Next.js e reexecutar a auditoria antes de publicação real de imagem.
+O achado histórico em `next -> postcss` foi removido com override global para `postcss ^8.5.22`, evitando a cópia aninhada vulnerável em `node_modules/next/node_modules/postcss`. A política do CI continua bloqueando vulnerabilidades `high`, `critical` ou achados fora da baseline explicitamente aceita pelo script.
 
 ## 15. Imagens Docker
 
@@ -101,6 +91,10 @@ O acesso público planejado deve usar HTTPS. A emissão e renovação de certifi
 
 Dependências, imagens e pacotes do sistema devem receber atualizações compatíveis com a estabilidade do projeto. Correções de segurança relevantes devem ter prioridade.
 
-## 21. Limitações do MVP
+## 21. CI e segredos
+
+Os workflows de CI usam `permissions: contents: read`, providers `fake` e não recebem `GROQ_API_KEY`. A verificação `scripts/check_repository_hygiene.py` bloqueia arquivos sensíveis versionados, state/plans Terraform, chaves privadas, tokens comuns e valores reais de `GROQ_API_KEY` sem imprimir o segredo detectado.
+
+## 22. Limitações do MVP
 
 O MVP não implementa autenticação, multiusuário, cofre de segredos integrado, WAF, auditoria completa, criptografia customizada de índice ou políticas corporativas avançadas.
