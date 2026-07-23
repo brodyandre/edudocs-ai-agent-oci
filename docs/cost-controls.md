@@ -8,7 +8,16 @@ O Terraform foi desenhado para mirar um perfil Always Free conservador, sem prom
 - Default de 2 OCPUs.
 - Default de 12 GB de memória.
 - Boot volume default de 50 GB, com validação até 100 GB.
-- Sem Load Balancer.
+- Um único OCI Flexible Load Balancer.
+- Shape do Load Balancer travado em `flexible`.
+- Bandwidth mínimo do Load Balancer travado em 10 Mbps.
+- Bandwidth máximo do Load Balancer travado em 10 Mbps.
+- Sem Network Load Balancer.
+- Sem WAF.
+- Sem Reserved Public IP.
+- Sem múltiplos listeners desnecessários.
+- Sem múltiplos backends.
+- Sem certificados nesta fase.
 - Sem NAT Gateway.
 - Sem OKE.
 - Sem banco gerenciado.
@@ -23,6 +32,7 @@ Antes de qualquer `plan` real:
 
 - Verifique se a home region é a região pretendida.
 - Verifique se a capacidade A1 está disponível.
+- Verifique se a tenancy aceita OCI Flexible Load Balancer 10/10 Mbps antes de qualquer apply.
 - Verifique limites e cotas do compartment.
 - Verifique se o boot volume proposto cabe no orçamento.
 - Verifique se o bucket opcional é necessário.
@@ -38,7 +48,11 @@ O script `scripts/check_terraform_policy.py` bloqueia padrões de risco como:
 - CPU ou memória acima dos limites conservadores.
 - SSH público para `0.0.0.0/0`.
 - Portas públicas de desenvolvimento.
-- Load Balancer, NAT Gateway, OKE, banco ou GPU.
+- Network Load Balancer, WAF, Reserved IP, NAT Gateway, OKE, banco ou GPU.
+- Mais de um Load Balancer.
+- Flexible Load Balancer acima de 10 Mbps.
+- Listener diferente de HTTP 80 ou backend diferente de 8080.
+- HTTP/HTTPS público direto na VM.
 - Bucket público.
 - Segredos evidentes em Terraform ou cloud-init.
 - Versionamento de tfvars reais, state ou planos.

@@ -96,6 +96,9 @@ EXPECTED_DELIVERY_PATHS = {
     "infrastructure/terraform/modules/compute/main.tf",
     "infrastructure/terraform/modules/compute/outputs.tf",
     "infrastructure/terraform/modules/compute/variables.tf",
+    "infrastructure/terraform/modules/load-balancer/main.tf",
+    "infrastructure/terraform/modules/load-balancer/outputs.tf",
+    "infrastructure/terraform/modules/load-balancer/variables.tf",
     "infrastructure/terraform/modules/network/main.tf",
     "infrastructure/terraform/modules/network/outputs.tf",
     "infrastructure/terraform/modules/network/variables.tf",
@@ -532,6 +535,25 @@ def collect_terraform_readiness(
         if (terraform_dir / "versions.tf").is_file()
         else ""
     )
+    variables = (
+        (terraform_dir / "variables.tf").read_text(encoding="utf-8")
+        if (terraform_dir / "variables.tf").is_file()
+        else ""
+    )
+    load_balancer = (
+        (terraform_dir / "modules" / "load-balancer" / "main.tf").read_text(
+            encoding="utf-8"
+        )
+        if (terraform_dir / "modules" / "load-balancer" / "main.tf").is_file()
+        else ""
+    )
+    network = (
+        (terraform_dir / "modules" / "network" / "main.tf").read_text(
+            encoding="utf-8"
+        )
+        if (terraform_dir / "modules" / "network" / "main.tf").is_file()
+        else ""
+    )
     policy = run_command(
         ["python3", "scripts/check_terraform_policy.py"], root, timeout=120
     )
@@ -560,9 +582,45 @@ def collect_terraform_readiness(
         "modules": {
             "network": (terraform_dir / "modules" / "network" / "main.tf").is_file(),
             "compute": (terraform_dir / "modules" / "compute" / "main.tf").is_file(),
+            "load_balancer": (
+                terraform_dir / "modules" / "load-balancer" / "main.tf"
+            ).is_file(),
             "object_storage": (
                 terraform_dir / "modules" / "object-storage" / "main.tf"
             ).is_file(),
+        },
+        "load_balancer": {
+            "declared": 'resource "oci_load_balancer_load_balancer"' in load_balancer,
+            "shape": "flexible" if 'default     = "flexible"' in variables else None,
+            "minimum_bandwidth_mbps": 10
+            if "load_balancer_min_bandwidth_mbps" in variables
+            and "default     = 10" in variables
+            else None,
+            "maximum_bandwidth_mbps": 10
+            if "load_balancer_max_bandwidth_mbps" in variables
+            and "default     = 10" in variables
+            else None,
+            "listener_port": 80
+            if "load_balancer_listener_port" in variables
+            and "default     = 80" in variables
+            else None,
+            "backend_port": 8080
+            if "load_balancer_backend_port" in variables
+            and "default     = 8080" in variables
+            else None,
+            "health_path": "/health"
+            if 'load_balancer_health_path" {' in variables
+            and 'default     = "/health"' in variables
+            else None,
+            "backend_uses_private_ip": "backend_private_ip        = module.compute.private_ip"
+            in (terraform_dir / "main.tf").read_text(encoding="utf-8")
+            if (terraform_dir / "main.tf").is_file()
+            else False,
+            "separate_nsgs": 'resource "oci_core_network_security_group" "app"'
+            in network
+            and 'resource "oci_core_network_security_group" "load_balancer"'
+            in network,
+            "endpoint_available": False,
         },
         "cloud_init_created": cloud_init.is_file(),
         "terraform_fmt_ok": fmt.get("ok"),
@@ -738,17 +796,18 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 
 {evidence_lines}
 
-## 10. Pendencias antes do Terraform
+## 10. Estado Terraform e pendencias OCI
 
 - Terraform criado: `{terraform.get("infrastructure_created")}`.
 - Provider OCI: `{terraform.get("oci_provider")}`.
 - Modulos: `{terraform.get("modules")}`.
+- Load Balancer: `{terraform.get("load_balancer")}`.
 - Cloud-init criado: `{terraform.get("cloud_init_created")}`.
 - Terraform fmt: `{terraform.get("terraform_fmt_ok")}`.
 - Terraform validate: `{terraform.get("terraform_validate_ok")}`.
 - Politica Terraform: `{terraform.get("terraform_policy_ok")}`.
 - Futuro: definir credenciais OCI fora do repositorio.
-- Futuro: validar compartment, home region e disponibilidade A1.
+- Futuro: validar compartment, home region, disponibilidade A1 e elegibilidade do Load Balancer 10/10 Mbps.
 - Futuro: definir CIDR administrativo real.
 - Futuro: aplicar estrategia de state antes do primeiro plan real.
 - Nao aplicavel nesta entrega: `terraform plan`, `apply` ou `destroy`.
@@ -757,7 +816,7 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 
 - [ ] Credenciais OCI configuradas fora do Git.
 - [ ] Compartment validado.
-- [ ] Regiao e capacidade A1 verificadas.
+- [ ] Regiao, capacidade A1 e elegibilidade do Load Balancer 10/10 Mbps verificadas.
 - [ ] CIDR administrativo definido.
 - [ ] Estrategia de state definida.
 - [ ] Evidencias locais atualizadas quando disponiveis.

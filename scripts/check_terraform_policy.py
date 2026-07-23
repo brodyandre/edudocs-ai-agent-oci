@@ -29,6 +29,9 @@ REQUIRED_FILES = {
     "infrastructure/terraform/modules/compute/main.tf",
     "infrastructure/terraform/modules/compute/variables.tf",
     "infrastructure/terraform/modules/compute/outputs.tf",
+    "infrastructure/terraform/modules/load-balancer/main.tf",
+    "infrastructure/terraform/modules/load-balancer/variables.tf",
+    "infrastructure/terraform/modules/load-balancer/outputs.tf",
     "infrastructure/terraform/modules/object-storage/main.tf",
     "infrastructure/terraform/modules/object-storage/variables.tf",
     "infrastructure/terraform/modules/object-storage/outputs.tf",
@@ -36,9 +39,13 @@ REQUIRED_FILES = {
 
 FORBIDDEN_INFRASTRUCTURE_RESOURCES = {
     "oci_core_nat_gateway": "nat-gateway",
-    "oci_load_balancer": "load-balancer",
+    "oci_network_load_balancer": "network-load-balancer",
     "oci_containerengine_cluster": "oke",
     "oci_database": "database",
+    "oci_core_public_ip": "reserved-public-ip",
+    "reserved_ips": "reserved-public-ip",
+    "oci_waf": "waf",
+    "oci_waas": "waf",
     "VM.GPU": "gpu",
 }
 
@@ -109,6 +116,40 @@ def workflow_files(root: Path) -> list[Path]:
     return [path for path in workflows.glob("*.yml")] + [
         path for path in workflows.glob("*.yaml")
     ]
+
+
+def terraform_joined_text(root: Path) -> str:
+    return "\n".join(read_text(path) for path in terraform_text_files(root))
+
+
+def resource_blocks(root: Path) -> list[tuple[str, str, str, str]]:
+    blocks: list[tuple[str, str, str, str]] = []
+    pattern = re.compile(r'resource\s+"(?P<type>[^"]+)"\s+"(?P<name>[^"]+)"\s*\{')
+    for path in terraform_text_files(root):
+        if path.suffix != ".tf":
+            continue
+        text = read_text(path)
+        for match in pattern.finditer(text):
+            depth = 0
+            end = match.end()
+            for index in range(match.end() - 1, len(text)):
+                char = text[index]
+                if char == "{":
+                    depth += 1
+                elif char == "}":
+                    depth -= 1
+                    if depth == 0:
+                        end = index + 1
+                        break
+            blocks.append(
+                (
+                    relative(path, root),
+                    match.group("type"),
+                    match.group("name"),
+                    text[match.start() : end],
+                )
+            )
+    return blocks
 
 
 def find_required_files(root: Path) -> list[Finding]:
@@ -309,6 +350,24 @@ def find_limit_risks(root: Path) -> list[Finding]:
                 "create_backup_bucket deve iniciar false.",
             )
         )
+    expected_lb_defaults = {
+        "enable_load_balancer": "true",
+        "load_balancer_shape": '"flexible"',
+        "load_balancer_min_bandwidth_mbps": "10",
+        "load_balancer_max_bandwidth_mbps": "10",
+        "load_balancer_listener_port": "80",
+        "load_balancer_backend_port": "8080",
+        "load_balancer_health_path": '"/health"',
+    }
+    for name, expected in expected_lb_defaults.items():
+        if default_value(text, name) != expected:
+            findings.append(
+                Finding(
+                    relative(variables, root),
+                    f"{name}-default",
+                    f"{name} deve ter default {expected}.",
+                )
+            )
 
     if not re.search(
         r"var\.compute_ocpus\s*>\s*0\s*&&\s*var\.compute_ocpus\s*<=\s*2", text
@@ -342,52 +401,293 @@ def find_limit_risks(root: Path) -> list[Finding]:
                 "boot_volume_size_gbs deve validar 50 a 100 GB.",
             )
         )
+    if "var.load_balancer_min_bandwidth_mbps == 10" not in text:
+        findings.append(
+            Finding(
+                relative(variables, root),
+                "lb-min-bandwidth-validation",
+                "Load Balancer deve validar minimo exatamente 10 Mbps.",
+            )
+        )
+    if "var.load_balancer_max_bandwidth_mbps == 10" not in text:
+        findings.append(
+            Finding(
+                relative(variables, root),
+                "lb-max-bandwidth-validation",
+                "Load Balancer deve validar maximo exatamente 10 Mbps.",
+            )
+        )
+    return findings
+
+
+def find_load_balancer_risks(root: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    blocks = resource_blocks(root)
+    all_tf = terraform_joined_text(root)
+    lb_blocks = [
+        item for item in blocks if item[1] == "oci_load_balancer_load_balancer"
+    ]
+    listener_blocks = [
+        item for item in blocks if item[1] == "oci_load_balancer_listener"
+    ]
+    backend_set_blocks = [
+        item for item in blocks if item[1] == "oci_load_balancer_backend_set"
+    ]
+    backend_blocks = [item for item in blocks if item[1] == "oci_load_balancer_backend"]
+
+    if len(lb_blocks) != 1:
+        findings.append(
+            Finding(
+                "infrastructure/terraform/modules/load-balancer/main.tf",
+                "load-balancer-count",
+                "Deve existir exatamente um oci_load_balancer_load_balancer.",
+            )
+        )
+    if len(listener_blocks) != 1:
+        findings.append(
+            Finding(
+                "infrastructure/terraform/modules/load-balancer/main.tf",
+                "listener-count",
+                "Deve existir exatamente um listener HTTP.",
+            )
+        )
+    if len(backend_blocks) != 1:
+        findings.append(
+            Finding(
+                "infrastructure/terraform/modules/load-balancer/main.tf",
+                "backend-count",
+                "Deve existir exatamente um backend.",
+            )
+        )
+
+    for path, _, _, text in lb_blocks:
+        if not re.search(r"shape\s*=\s*(var\.load_balancer_shape|\"flexible\")", text):
+            findings.append(
+                Finding(path, "lb-shape", "Load Balancer deve usar shape flexible.")
+            )
+        if not re.search(
+            r"minimum_bandwidth_in_mbps\s*=\s*(var\.minimum_bandwidth_in_mbps|10)",
+            text,
+        ):
+            findings.append(
+                Finding(path, "lb-min-bandwidth", "Bandwidth minimo deve ser 10 Mbps.")
+            )
+        if not re.search(
+            r"maximum_bandwidth_in_mbps\s*=\s*(var\.maximum_bandwidth_in_mbps|10)",
+            text,
+        ):
+            findings.append(
+                Finding(path, "lb-max-bandwidth", "Bandwidth maximo deve ser 10 Mbps.")
+            )
+        if not re.search(r"is_private\s*=\s*false", text):
+            findings.append(
+                Finding(path, "lb-public", "Load Balancer deve ser publico.")
+            )
+        if not re.search(
+            r"network_security_group_ids\s*=\s*\[\s*var\.load_balancer_nsg_id\s*\]",
+            text,
+        ):
+            findings.append(
+                Finding(path, "lb-nsg", "Load Balancer deve usar NSG exclusivo.")
+            )
+
+    for path, _, _, text in backend_set_blocks:
+        required = {
+            r'policy\s*=\s*"ROUND_ROBIN"': "backend-set-policy",
+            r'protocol\s*=\s*"HTTP"': "health-protocol",
+            r"port\s*=\s*var\.backend_port": "health-port",
+            r"url_path\s*=\s*var\.health_path": "health-path",
+            r"return_code\s*=\s*200": "health-return-code",
+        }
+        for pattern, kind in required.items():
+            if not re.search(pattern, text):
+                findings.append(
+                    Finding(path, kind, "Backend set/health checker fora da politica.")
+                )
+
+    for path, _, _, text in backend_blocks:
+        if not re.search(r"ip_address\s*=\s*var\.backend_private_ip", text):
+            findings.append(
+                Finding(
+                    path, "backend-private-ip", "Backend deve usar IP privado da VM."
+                )
+            )
+        if re.search(r"ip_address\s*=.*public", text, flags=re.IGNORECASE):
+            findings.append(
+                Finding(path, "backend-public-ip", "Backend nao pode usar IP publico.")
+            )
+        if re.search(
+            r"\bport\s*=\s*80\b|\bport\s*=\s*3000\b|\bport\s*=\s*8000\b", text
+        ):
+            findings.append(
+                Finding(path, "backend-port", "Backend deve usar somente a porta 8080.")
+            )
+        if not re.search(r"port\s*=\s*(var\.backend_port|8080)\b", text):
+            findings.append(
+                Finding(path, "backend-port", "Backend deve usar a porta 8080.")
+            )
+
+    for path, _, _, text in listener_blocks:
+        if not re.search(r'protocol\s*=\s*"HTTP"', text):
+            findings.append(
+                Finding(path, "listener-protocol", "Listener deve usar HTTP.")
+            )
+        if not re.search(r"port\s*=\s*(var\.listener_port|80)\b", text):
+            findings.append(
+                Finding(path, "listener-port", "Listener deve usar a porta 80.")
+            )
+        if re.search(r"\bport\s*=\s*(3000|8000|8080)\b", text):
+            findings.append(
+                Finding(
+                    path,
+                    "listener-dev-port",
+                    "Listener nao pode usar porta de desenvolvimento.",
+                )
+            )
+        if "ssl_configuration" in text:
+            findings.append(
+                Finding(
+                    path, "listener-https", "HTTPS/certificado nao entra nesta entrega."
+                )
+            )
+
+    if not re.search(r"backend_private_ip\s*=\s*module\.compute\.private_ip", all_tf):
+        findings.append(
+            Finding(
+                "infrastructure/terraform/main.tf",
+                "root-backend-private-ip",
+                "Modulo Load Balancer deve receber module.compute.private_ip.",
+            )
+        )
+    if re.search(r"backend_private_ip\s*=.*public_ip", all_tf):
+        findings.append(
+            Finding(
+                "infrastructure/terraform/main.tf",
+                "root-backend-public-ip",
+                "Backend nao pode receber public_ip.",
+            )
+        )
     return findings
 
 
 def find_network_and_cost_risks(root: Path) -> list[Finding]:
     findings: list[Finding] = []
-    for path in terraform_text_files(root):
-        text = read_text(path)
-        rel = relative(path, root)
+    blocks = resource_blocks(root)
+    all_tf = terraform_joined_text(root)
+    for path, _, _, text in blocks:
         for token, kind in FORBIDDEN_INFRASTRUCTURE_RESOURCES.items():
             if token in text:
                 findings.append(
-                    Finding(rel, kind, f"Recurso proibido nesta entrega: {token}.")
+                    Finding(path, kind, f"Recurso proibido nesta entrega: {token}.")
                 )
         if re.search(
             r"source\s*=\s*\"0\.0\.0\.0/0\".*?min\s*=\s*22", text, flags=re.DOTALL
         ):
             findings.append(
-                Finding(rel, "ssh-public", "SSH nao pode ser aberto para 0.0.0.0/0.")
+                Finding(path, "ssh-public", "SSH nao pode ser aberto para 0.0.0.0/0.")
             )
         if re.search(r"admin_cidr\s*=\s*\"0\.0\.0\.0/0\"", text):
             findings.append(
-                Finding(rel, "admin-cidr-public", "admin_cidr nao pode ser 0.0.0.0/0.")
+                Finding(path, "admin-cidr-public", "admin_cidr nao pode ser 0.0.0.0/0.")
             )
-        for port in ("3000", "8000", "8080", "2375", "2376"):
-            if re.search(rf"min\s*=\s*{port}\b|max\s*=\s*{port}\b", text):
+        for port in ("3000", "8000", "2375", "2376"):
+            if re.search(
+                rf"source\s*=\s*\"0\.0\.0\.0/0\".*?(min|max)\s*=\s*{port}\b",
+                text,
+                flags=re.DOTALL,
+            ):
                 findings.append(
                     Finding(
-                        rel,
+                        path,
                         "public-dev-port",
                         f"Porta {port} nao deve ser liberada no NSG publico.",
                     )
                 )
         if re.search(
+            r"source\s*=\s*\"0\.0\.0\.0/0\".*?(min|max)\s*=\s*8080\b",
+            text,
+            flags=re.DOTALL,
+        ):
+            findings.append(
+                Finding(path, "public-8080", "Porta 8080 nao pode ser publica.")
+            )
+        if (
+            "network_security_group_id = oci_core_network_security_group.app.id" in text
+            and re.search(
+                r"source\s*=\s*\"0\.0\.0\.0/0\".*?(min|max)\s*=\s*(80|443|8080)\b",
+                text,
+                flags=re.DOTALL,
+            )
+        ):
+            findings.append(
+                Finding(
+                    path,
+                    "app-public-http",
+                    "NSG da aplicacao nao pode receber HTTP/HTTPS/8080 publico.",
+                )
+            )
+        if re.search(
             r'access_type\s*=\s*"(ObjectRead|ObjectReadWithoutListObjects|Public)"',
             text,
         ):
             findings.append(
-                Finding(rel, "public-bucket", "Bucket nao pode ter acesso publico.")
+                Finding(path, "public-bucket", "Bucket nao pode ter acesso publico.")
             )
         if re.search(
             r'public_access_type\s*=\s*"(ObjectRead|ObjectReadWithoutListObjects|Public)"',
             text,
         ):
             findings.append(
-                Finding(rel, "public-bucket", "Bucket nao pode ter acesso publico.")
+                Finding(path, "public-bucket", "Bucket nao pode ter acesso publico.")
             )
+    if 'resource "oci_core_network_security_group" "app"' not in all_tf:
+        findings.append(
+            Finding(
+                "infrastructure/terraform/modules/network/main.tf",
+                "missing-app-nsg",
+                "NSG da aplicacao ausente.",
+            )
+        )
+    if 'resource "oci_core_network_security_group" "load_balancer"' not in all_tf:
+        findings.append(
+            Finding(
+                "infrastructure/terraform/modules/network/main.tf",
+                "missing-lb-nsg",
+                "NSG do Load Balancer ausente.",
+            )
+        )
+    if not re.search(
+        r'source_type\s*=\s*"NETWORK_SECURITY_GROUP"', all_tf
+    ) or not re.search(
+        r"source\s*=\s*oci_core_network_security_group\.load_balancer\.id", all_tf
+    ):
+        findings.append(
+            Finding(
+                "infrastructure/terraform/modules/network/main.tf",
+                "app-from-lb-nsg",
+                "8080 da aplicacao deve aceitar apenas origem do NSG do Load Balancer.",
+            )
+        )
+    if not re.search(
+        r'destination_type\s*=\s*"NETWORK_SECURITY_GROUP"', all_tf
+    ) or not re.search(
+        r"destination\s*=\s*oci_core_network_security_group\.app\.id", all_tf
+    ):
+        findings.append(
+            Finding(
+                "infrastructure/terraform/modules/network/main.tf",
+                "lb-to-app-nsg",
+                "Egress do Load Balancer deve apontar ao NSG da aplicacao.",
+            )
+        )
+    if "oci_load_balancer_load_balancer" not in all_tf:
+        findings.append(
+            Finding(
+                "infrastructure/terraform/modules/load-balancer/main.tf",
+                "missing-load-balancer",
+                "Load Balancer obrigatorio ausente.",
+            )
+        )
     return findings
 
 
@@ -468,6 +768,7 @@ def collect_findings(root: Path = ROOT) -> list[Finding]:
     findings.extend(find_workflow_risks(root))
     findings.extend(find_provider_and_secret_risks(root))
     findings.extend(find_limit_risks(root))
+    findings.extend(find_load_balancer_risks(root))
     findings.extend(find_network_and_cost_risks(root))
     findings.extend(find_cloud_init_risks(root))
     findings.extend(find_example_risks(root))

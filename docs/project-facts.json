@@ -90,7 +90,7 @@
     "pytest": {
       "ok": true,
       "returncode": 0,
-      "tests": 109
+      "tests": 123
     }
   },
   "corpus": {
@@ -294,7 +294,20 @@
     "modules": {
       "network": true,
       "compute": true,
+      "load_balancer": true,
       "object_storage": true
+    },
+    "load_balancer": {
+      "declared": true,
+      "shape": "flexible",
+      "minimum_bandwidth_mbps": 10,
+      "maximum_bandwidth_mbps": 10,
+      "listener_port": 80,
+      "backend_port": 8080,
+      "health_path": "/health",
+      "backend_uses_private_ip": true,
+      "separate_nsgs": true,
+      "endpoint_available": false
     },
     "cloud_init_created": true,
     "terraform_fmt_ok": true,

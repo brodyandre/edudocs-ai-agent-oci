@@ -29,7 +29,7 @@ Pendente: credenciais OCI, primeiro `terraform plan` real, qualquer `apply`, dep
 ## 4. Testes
 
 - Testes Web nesta auditoria: 55.
-- Testes API nesta auditoria: 109.
+- Testes API nesta auditoria: 123.
 
 ## 5. Avaliacao RAG
 
@@ -81,17 +81,18 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - `docs/evidence/oci-application.png`: reservado para etapa futura
 - `docs/evidence/oci-instance-running.png`: reservado para etapa futura
 
-## 10. Pendencias antes do Terraform
+## 10. Estado Terraform e pendencias OCI
 
 - Terraform criado: `True`.
 - Provider OCI: `~> 8.23.0`.
-- Modulos: `{'network': True, 'compute': True, 'object_storage': True}`.
+- Modulos: `{'network': True, 'compute': True, 'load_balancer': True, 'object_storage': True}`.
+- Load Balancer: `{'declared': True, 'shape': 'flexible', 'minimum_bandwidth_mbps': 10, 'maximum_bandwidth_mbps': 10, 'listener_port': 80, 'backend_port': 8080, 'health_path': '/health', 'backend_uses_private_ip': True, 'separate_nsgs': True, 'endpoint_available': False}`.
 - Cloud-init criado: `True`.
 - Terraform fmt: `True`.
 - Terraform validate: `True`.
 - Politica Terraform: `True`.
 - Futuro: definir credenciais OCI fora do repositorio.
-- Futuro: validar compartment, home region e disponibilidade A1.
+- Futuro: validar compartment, home region, disponibilidade A1 e elegibilidade do Load Balancer 10/10 Mbps.
 - Futuro: definir CIDR administrativo real.
 - Futuro: aplicar estrategia de state antes do primeiro plan real.
 - Nao aplicavel nesta entrega: `terraform plan`, `apply` ou `destroy`.
@@ -100,7 +101,7 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 
 - [ ] Credenciais OCI configuradas fora do Git.
 - [ ] Compartment validado.
-- [ ] Regiao e capacidade A1 verificadas.
+- [ ] Regiao, capacidade A1 e elegibilidade do Load Balancer 10/10 Mbps verificadas.
 - [ ] CIDR administrativo definido.
 - [ ] Estrategia de state definida.
 - [ ] Evidencias locais atualizadas quando disponiveis.

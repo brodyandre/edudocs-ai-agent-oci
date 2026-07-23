@@ -8,7 +8,17 @@ output "public_subnet_id" {
   value       = oci_core_subnet.public.id
 }
 
-output "nsg_id" {
+output "app_nsg_id" {
   description = "OCID do NSG da aplicacao."
+  value       = oci_core_network_security_group.app.id
+}
+
+output "load_balancer_nsg_id" {
+  description = "OCID do NSG do Load Balancer."
+  value       = oci_core_network_security_group.load_balancer.id
+}
+
+output "nsg_id" {
+  description = "OCID do NSG da aplicacao, mantido por compatibilidade."
   value       = oci_core_network_security_group.app.id
 }

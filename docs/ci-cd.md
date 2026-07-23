@@ -72,7 +72,7 @@ Leia primeiro o job e a etapa com falha. Para containers, consulte os logs do sm
 
 Os workflows não publicam artefatos grandes, não fazem upload do índice e não geram cobertura. A validação de links cobre links relativos do README e não depende de links externos.
 
-Terraform no CI executa apenas `fmt`, `init -backend=false`, `validate` e `scripts/check_terraform_policy.py`. Não há `plan`, `apply`, `destroy`, credenciais OCI ou permissões de escrita.
+Terraform no CI executa apenas `fmt`, `init -backend=false`, `validate`, `scripts/check_terraform_policy.py` e testes offline da política. A validação cobre o Flexible Load Balancer 10/10 Mbps, backend privado 8080, listener HTTP 80 e dois NSGs. Não há `plan`, `apply`, `destroy`, credenciais OCI ou permissões de escrita.
 
 ## 17. O que não é feito nesta etapa
 

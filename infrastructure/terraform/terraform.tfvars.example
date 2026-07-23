@@ -23,3 +23,9 @@ ssh_public_key_path = "~/.ssh/id_ed25519.pub"
 # Opcional: habilite um bucket privado de backup apenas quando houver estrategia clara de uso.
 # create_backup_bucket = true
 # backup_bucket_name   = "edudocs-ai-production-backup"
+
+# Load Balancer Always Free alvo: mantenha os defaults 10/10 Mbps.
+# A elegibilidade precisa ser confirmada na tenancy antes de qualquer apply.
+# load_balancer_shape              = "flexible"
+# load_balancer_min_bandwidth_mbps = 10
+# load_balancer_max_bandwidth_mbps = 10

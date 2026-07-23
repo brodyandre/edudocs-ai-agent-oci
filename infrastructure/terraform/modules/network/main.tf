@@ -53,6 +53,13 @@ resource "oci_core_network_security_group" "app" {
   freeform_tags  = var.freeform_tags
 }
 
+resource "oci_core_network_security_group" "load_balancer" {
+  compartment_id = var.compartment_ocid
+  vcn_id         = oci_core_vcn.this.id
+  display_name   = "${var.name_prefix}-lb-nsg"
+  freeform_tags  = var.freeform_tags
+}
+
 resource "oci_core_network_security_group_security_rule" "ssh_admin" {
   network_security_group_id = oci_core_network_security_group.app.id
   direction                 = "INGRESS"
@@ -76,15 +83,29 @@ resource "oci_core_network_security_group_security_rule" "ssh_admin" {
   }
 }
 
-resource "oci_core_network_security_group_security_rule" "http" {
-  count = var.enable_http ? 1 : 0
-
+resource "oci_core_network_security_group_security_rule" "app_from_load_balancer" {
   network_security_group_id = oci_core_network_security_group.app.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = oci_core_network_security_group.load_balancer.id
+  source_type               = "NETWORK_SECURITY_GROUP"
+  description               = "Nginx na VM recebe apenas trafego originado no NSG do Load Balancer."
+
+  tcp_options {
+    destination_port_range {
+      min = 8080
+      max = 8080
+    }
+  }
+}
+
+resource "oci_core_network_security_group_security_rule" "load_balancer_http" {
+  network_security_group_id = oci_core_network_security_group.load_balancer.id
   direction                 = "INGRESS"
   protocol                  = "6"
   source                    = "0.0.0.0/0"
   source_type               = "CIDR_BLOCK"
-  description               = "HTTP publico para Nginx apos deploy real."
+  description               = "HTTP publico somente no Load Balancer."
 
   tcp_options {
     destination_port_range {
@@ -94,25 +115,23 @@ resource "oci_core_network_security_group_security_rule" "http" {
   }
 }
 
-resource "oci_core_network_security_group_security_rule" "https" {
-  count = var.enable_https ? 1 : 0
-
-  network_security_group_id = oci_core_network_security_group.app.id
-  direction                 = "INGRESS"
+resource "oci_core_network_security_group_security_rule" "load_balancer_to_app" {
+  network_security_group_id = oci_core_network_security_group.load_balancer.id
+  direction                 = "EGRESS"
   protocol                  = "6"
-  source                    = "0.0.0.0/0"
-  source_type               = "CIDR_BLOCK"
-  description               = "HTTPS publico para Nginx apos deploy real."
+  destination               = oci_core_network_security_group.app.id
+  destination_type          = "NETWORK_SECURITY_GROUP"
+  description               = "Load Balancer encaminha apenas para o Nginx da aplicacao."
 
   tcp_options {
     destination_port_range {
-      min = 443
-      max = 443
+      min = 8080
+      max = 8080
     }
   }
 }
 
-resource "oci_core_network_security_group_security_rule" "egress_all" {
+resource "oci_core_network_security_group_security_rule" "app_egress_all" {
   network_security_group_id = oci_core_network_security_group.app.id
   direction                 = "EGRESS"
   protocol                  = "all"

@@ -23,16 +23,6 @@ variable "admin_cidr" {
   type        = string
 }
 
-variable "enable_http" {
-  description = "Habilita entrada HTTP."
-  type        = bool
-}
-
-variable "enable_https" {
-  description = "Habilita entrada HTTPS."
-  type        = bool
-}
-
 variable "freeform_tags" {
   description = "Tags livres aplicadas aos recursos."
   type        = map(string)

@@ -23,7 +23,7 @@ Projetar uma solução RAG localmente executável, preparada para deploy em OCI,
 - Combinar busca semântica e lexical para melhorar a recuperação.
 - Isolar o provedor de LLM por interface substituível.
 - Permitir testes com provedor falso determinístico, sem consumo externo.
-- Manter execução local com Docker Compose e preparar deploy em OCI Compute ARM64 via Terraform.
+- Manter execução local com Docker Compose e preparar deploy em OCI Compute ARM64 via Terraform e OCI Flexible Load Balancer.
 
 ## 6. Requisitos funcionais
 
@@ -59,7 +59,7 @@ O MVP não inclui autenticação, OCR, upload público de documentos, Kubernetes
 - **Índice local**: armazena vetores, metadados e referências de chunks.
 - **Extração de PDFs**: PyMuPDF para leitura página a página.
 - **LLM**: Groq inicialmente, isolado por contrato de provedor.
-- **Infraestrutura**: Docker Compose local, Nginx e Terraform OCI validável para Compute ARM64.
+- **Infraestrutura**: Docker Compose local, Nginx e Terraform OCI validável para Compute ARM64 com Flexible Load Balancer 10 Mbps.
 
 ## 10. Diagrama Mermaid da arquitetura
 
@@ -128,7 +128,7 @@ A execução local usa Docker Compose para subir API, interface, Nginx e volume 
 
 ## 16. Deploy na OCI
 
-O deploy planejado usa OCI Compute ARM64, Nginx como servidor reverso e Terraform para provisionamento. O código em `infrastructure/terraform` cria VCN, subnet pública, NSG, instância A1 Flex, cloud-init e bucket privado opcional. Ainda não houve `terraform plan`, `apply` ou deploy real.
+O deploy planejado usa OCI Flexible Load Balancer público como único endpoint HTTP, encaminhando para Nginx em Docker na VM Ampere A1 pela porta privada 8080. O código em `infrastructure/terraform` cria VCN, subnet pública, dois NSGs, instância A1 Flex, Load Balancer flexível 10/10 Mbps, cloud-init e bucket privado opcional. Ainda não houve `terraform plan`, `apply` ou deploy real.
 
 ## 17. Compatibilidade ARM64
 

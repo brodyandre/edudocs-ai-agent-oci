@@ -176,16 +176,81 @@ variable "public_subnet_cidr" {
   }
 }
 
-variable "enable_http" {
-  description = "Quando true, libera entrada TCP 80 no NSG publico."
+variable "enable_load_balancer" {
+  description = "Mantem o OCI Flexible Load Balancer habilitado para a arquitetura publica alvo."
   type        = bool
   default     = true
+
+  validation {
+    condition     = var.enable_load_balancer == true
+    error_message = "enable_load_balancer deve permanecer true nesta arquitetura."
+  }
 }
 
-variable "enable_https" {
-  description = "Quando true, libera entrada TCP 443 no NSG publico."
-  type        = bool
-  default     = true
+variable "load_balancer_shape" {
+  description = "Shape do OCI Load Balancer. Nesta entrega, somente flexible e permitido."
+  type        = string
+  default     = "flexible"
+
+  validation {
+    condition     = var.load_balancer_shape == "flexible"
+    error_message = "load_balancer_shape deve ser exatamente flexible."
+  }
+}
+
+variable "load_balancer_min_bandwidth_mbps" {
+  description = "Bandwidth minimo do Flexible Load Balancer. Always Free alvo: exatamente 10 Mbps."
+  type        = number
+  default     = 10
+
+  validation {
+    condition     = var.load_balancer_min_bandwidth_mbps == 10
+    error_message = "load_balancer_min_bandwidth_mbps deve ser exatamente 10."
+  }
+}
+
+variable "load_balancer_max_bandwidth_mbps" {
+  description = "Bandwidth maximo do Flexible Load Balancer. Always Free alvo: exatamente 10 Mbps."
+  type        = number
+  default     = 10
+
+  validation {
+    condition     = var.load_balancer_max_bandwidth_mbps == 10 && var.load_balancer_max_bandwidth_mbps <= 10
+    error_message = "load_balancer_max_bandwidth_mbps deve ser exatamente 10 e nunca maior que 10."
+  }
+}
+
+variable "load_balancer_listener_port" {
+  description = "Porta publica do listener HTTP do Load Balancer."
+  type        = number
+  default     = 80
+
+  validation {
+    condition     = var.load_balancer_listener_port == 80
+    error_message = "load_balancer_listener_port deve ser exatamente 80 nesta entrega."
+  }
+}
+
+variable "load_balancer_backend_port" {
+  description = "Porta privada do Nginx na VM usada pelo backend set."
+  type        = number
+  default     = 8080
+
+  validation {
+    condition     = var.load_balancer_backend_port == 8080
+    error_message = "load_balancer_backend_port deve ser exatamente 8080."
+  }
+}
+
+variable "load_balancer_health_path" {
+  description = "Caminho HTTP usado pelo health checker do Load Balancer."
+  type        = string
+  default     = "/health"
+
+  validation {
+    condition     = startswith(var.load_balancer_health_path, "/") && var.load_balancer_health_path == "/health"
+    error_message = "load_balancer_health_path deve comecar com / e permanecer /health nesta entrega."
+  }
 }
 
 variable "create_backup_bucket" {

@@ -193,12 +193,17 @@ flowchart LR
     end
 
     subgraph Futuro OCI
-      OCI[Compute ARM64 pendente]
+      LB[OCI Flexible Load Balancer]
+      OCI[VM Ampere A1]
       TF[Terraform validavel]
     end
+
+    U -. futuro HTTP 80 .-> LB
+    LB -. backend 8080 privado .-> OCI
+    OCI -. Nginx Docker .-> N
 ```
 
-No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única porta pública padrão é `8080`, servida pelo Nginx. A infraestrutura OCI agora possui Terraform validável para VCN, Compute ARM64, cloud-init e bucket privado opcional, mas ainda não houve `plan`, `apply` nem deploy publicado.
+No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única porta pública padrão é `8080`, servida pelo Nginx. A infraestrutura OCI agora possui Terraform validável para VCN, Compute ARM64, cloud-init, OCI Flexible Load Balancer público 10 Mbps e bucket privado opcional, mas ainda não houve `plan`, `apply` nem deploy publicado.
 
 [Voltar ao índice](#índice)
 
@@ -213,7 +218,7 @@ No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única
 | Testes | pytest `>=8.0,<9`, Ruff `>=0.8,<0.14`, Vitest `^3.2.4` |
 | Containers | Docker Compose, Nginx unprivileged, imagens locais para API e web |
 | CI/CD | Quality, API CI, Web CI e Containers CI no GitHub Actions |
-| Infraestrutura OCI | Terraform `>=1.15,<1.16`, provider `oracle/oci ~> 8.23`, Compute ARM64 A1 Flex, cloud-init e política estática |
+| Infraestrutura OCI | Terraform `>=1.15,<1.16`, provider `oracle/oci ~> 8.23`, Compute ARM64 A1 Flex, Flexible Load Balancer 10 Mbps, cloud-init e política estática |
 
 [Voltar ao índice](#índice)
 
@@ -368,7 +373,10 @@ Concluído:
 - Docker Compose com Nginx.
 - CI para qualidade, API, web e containers.
 - Builds de containers para amd64 e ARM64 no CI.
-- Terraform OCI com módulos de rede, compute e object storage opcional.
+- Terraform OCI com módulos de rede, compute, load balancer e object storage opcional.
+- OCI Flexible Load Balancer declarado com backend set, backend privado, listener HTTP 80 e health check `/health`.
+- Dois NSGs separados: Load Balancer público em 80 e aplicação privada em 8080 a partir do NSG do Load Balancer.
+- Outputs para endpoint futuro `http://<load_balancer_public_ip>` e health URL.
 - Cloud-init para preparar a VM base sem iniciar deploy.
 - Validações Terraform, política de custo e CI sem credenciais.
 
@@ -377,6 +385,8 @@ Próximo:
 - Confirmar credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state.
 - Executar primeiro `terraform plan` real somente após aprovação.
 - Provisionar OCI somente após revisão do plano.
+- Publicar imagens ARM64 e iniciar a aplicação na VM.
+- Obter IP real do Load Balancer após apply.
 - Validar Groq real fora do ambiente de teste.
 - Configurar domínio e HTTPS.
 - Produzir evidências reais do deploy.
@@ -385,9 +395,17 @@ Próximo:
 
 ## Infraestrutura OCI
 
-A OCI possui código Terraform criado em `infrastructure/terraform`, com módulos de rede, compute, object storage opcional e cloud-init em `infrastructure/cloud-init/app-server.yaml.tftpl`. Esta etapa valida o código e a política, mas não executa `plan`, `apply` ou `destroy`, e não afirma deploy ativo.
+A OCI possui código Terraform criado em `infrastructure/terraform`, com módulos de rede, compute, load balancer, object storage opcional e cloud-init em `infrastructure/cloud-init/app-server.yaml.tftpl`. Esta etapa valida o código e a política, mas não executa `plan`, `apply` ou `destroy`, e não afirma deploy ativo.
 
-O Prompt 09 pode criar e validar o código Terraform sem credenciais reais. Credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state devem ser confirmados antes do primeiro `terraform plan` real e antes de qualquer `apply`.
+O acesso público futuro será exclusivamente pelo OCI Flexible Load Balancer:
+
+```text
+Usuário -> OCI Flexible Load Balancer -> VM Ampere A1 -> Nginx -> Next.js/FastAPI
+```
+
+O endpoint futuro será conhecido somente após apply real e terá o formato `http://<load_balancer_public_ip>`. Uma URL nominal exigirá DNS posteriormente.
+
+O código pode ser criado e validado sem credenciais reais. Credenciais OCI, compartment, home region, capacidade A1, elegibilidade do Flexible Load Balancer 10 Mbps, CIDR administrativo e estratégia de state devem ser confirmados antes do primeiro `terraform plan` real e antes de qualquer `apply`.
 
 Documentação relacionada:
 
@@ -418,6 +436,7 @@ Documentação relacionada:
 | Corpus PDF | Concluído com documentos fictícios |
 | Interface gráfica | Concluída para uso local |
 | Terraform OCI | Concluído e validado sem credenciais reais |
+| Load Balancer OCI | Declarado em Terraform; endpoint real pendente |
 | Deploy OCI | Pendente |
 | Screenshots locais | Concluídos e inseridos contextualmente no README |
 | Evidência OCI | Reservada para etapa futura |
@@ -432,7 +451,7 @@ Documentação relacionada:
 - Não há autenticação.
 - O histórico não é persistido entre sessões.
 - O provedor Groq real ainda não foi validado nesta etapa.
-- A OCI ainda não foi implantada; somente o código Terraform foi criado e validado.
+- A OCI ainda não foi implantada; somente o código Terraform, incluindo o Load Balancer, foi criado e validado.
 - As métricas `fact_coverage_rate`, `complete_document_citation_rate` e `page_recall_at_k` indicam pontos reais de melhoria.
 
 [Voltar ao índice](#índice)
@@ -440,12 +459,14 @@ Documentação relacionada:
 ## Roadmap
 
 1. Confirmar credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e state.
-2. Executar e revisar o primeiro `terraform plan` real.
-3. Provisionar OCI somente após aprovação do plano.
-4. Publicar a aplicação em Compute ARM64.
-5. Configurar domínio, HTTPS e variáveis seguras.
-6. Produzir capturas reais de aplicação e infraestrutura.
-7. Reavaliar recuperação, cobertura factual e citações multi-documento.
+2. Confirmar elegibilidade do OCI Flexible Load Balancer 10 Mbps na tenancy.
+3. Executar e revisar o primeiro `terraform plan` real.
+4. Provisionar OCI somente após aprovação do plano.
+5. Publicar a aplicação em Compute ARM64.
+6. Validar `http://<load_balancer_public_ip>` e depois configurar DNS.
+7. Configurar domínio, HTTPS e variáveis seguras.
+8. Produzir capturas reais de aplicação e infraestrutura.
+9. Reavaliar recuperação, cobertura factual e citações multi-documento.
 
 [Voltar ao índice](#índice)
 

@@ -77,7 +77,7 @@ Containers de aplicação devem executar com usuário não root sempre que poss�
 
 ## 17. Regras de rede OCI
 
-O Terraform OCI libera SSH apenas para `admin_cidr` e HTTP/HTTPS para o proxy quando habilitados. Portas de desenvolvimento como 3000, 8000 e 8080 não devem ser expostas diretamente na OCI.
+O Terraform OCI libera SSH apenas para `admin_cidr`. O tráfego HTTP público entra somente pelo NSG do Load Balancer na porta 80; a VM recebe 8080 apenas a partir do NSG do Load Balancer. HTTP/HTTPS direto na VM e portas 3000, 8000 ou 8080 públicas não devem existir.
 
 ## 18. SSH restrito
 

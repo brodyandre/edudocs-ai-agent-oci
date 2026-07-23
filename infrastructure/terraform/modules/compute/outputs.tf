@@ -13,6 +13,11 @@ output "public_ip" {
   value       = oci_core_instance.app.public_ip
 }
 
+output "private_ip" {
+  description = "IP privado da instancia usado pelo backend do Load Balancer."
+  value       = oci_core_instance.app.private_ip
+}
+
 output "ssh_connection_hint" {
   description = "Comando SSH sugerido apos apply real."
   value       = "ssh ubuntu@${oci_core_instance.app.public_ip}"
