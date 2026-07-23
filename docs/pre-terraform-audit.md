@@ -1,6 +1,6 @@
 # Auditoria pre-Terraform do EduDocs AI
 
-Gerado em `2026-07-23T17:33:09Z`.
+Gerado em `2026-07-23T17:40:27Z`.
 
 ## 1. Resumo executivo
 
@@ -11,10 +11,10 @@ Pendente: a infraestrutura OCI ainda nao foi criada e o Prompt 09 continua pende
 ## 2. Baseline Git
 
 - Branch: `main`
-- HEAD: `5feac28993800b4e0233663bd6ad450d72740b62`
-- Ultimo commit: `docs: audita o projeto e transforma o README em vitrine`
-- Data do ultimo commit: `2026-07-23T14:35:58-03:00`
-- Sincronismo `main...origin/main`: `1	0`
+- HEAD: `38e8b7f9cbb215add938eb260dfa47dd42238dba`
+- Ultimo commit: `feat(web): adiciona ícone de consulta documental ao hero`
+- Data do ultimo commit: `2026-07-23T13:35:44-03:00`
+- Sincronismo `main...origin/main`: `0	0`
 - Workspace limpo: `True`
 - Repositorio: `https://github.com/brodyandre/edudocs-ai-agent-oci`
 - Visibilidade: `PUBLIC`
@@ -65,10 +65,10 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 
 ## 8. CI
 
-- API CI: completed / success (a525366)
-- Containers CI: completed / success (38e8b7f)
-- Quality: completed / success (38e8b7f)
-- Web CI: completed / success (38e8b7f)
+- API CI: completed / success (54f95a7)
+- Containers CI: completed / success (54f95a7)
+- Quality: completed / success (54f95a7)
+- Web CI: completed / success (54f95a7)
 
 ## 9. Evidencias visuais
 

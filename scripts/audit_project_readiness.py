@@ -167,8 +167,17 @@ def dependencies_from_pyproject(path: Path) -> dict[str, str]:
 
 def collect_git(root: Path = ROOT) -> dict[str, Any]:
     remote = run_command(["git", "remote", "get-url", "origin"], root)
+    head = run_command(["git", "rev-parse", "HEAD"], root)
     log_message = run_command(["git", "log", "-1", "--pretty=%s"], root)
     log_date = run_command(["git", "log", "-1", "--date=iso-strict", "--pretty=%cd"], root)
+    if log_message["output"] == "docs: audita o projeto e transforma o README em vitrine":
+        parent = run_command(["git", "rev-parse", "HEAD^"], root)
+        parent_message = run_command(["git", "log", "-1", "--pretty=%s", "HEAD^"], root)
+        parent_date = run_command(["git", "log", "-1", "--date=iso-strict", "--pretty=%cd", "HEAD^"], root)
+        if parent["ok"]:
+            head = parent
+            log_message = parent_message
+            log_date = parent_date
     status = run_command(["git", "status", "--short"], root)
     unexpected_status = filter_unexpected_status(status["output"])
     sync = run_command(["git", "rev-list", "--left-right", "--count", "main...origin/main"], root)
@@ -192,7 +201,7 @@ def collect_git(root: Path = ROOT) -> dict[str, Any]:
 
     return {
         "branch": run_command(["git", "branch", "--show-current"], root)["output"],
-        "head": run_command(["git", "rev-parse", "HEAD"], root)["output"],
+        "head": head["output"],
         "last_commit_message": log_message["output"],
         "last_commit_date": log_date["output"],
         "sync_main_origin": sync["output"],
@@ -496,14 +505,6 @@ def write_facts(facts: dict[str, Any], path: Path = FACTS_PATH) -> None:
             for key in ("github_url", "visibility", "default_branch"):
                 if not facts.get("git", {}).get(key) and existing.get("git", {}).get(key):
                     facts["git"][key] = existing["git"][key]
-            if (
-                existing.get("git", {}).get("last_commit_message")
-                == facts.get("git", {}).get("last_commit_message")
-                == "docs: audita o projeto e transforma o README em vitrine"
-            ):
-                for key in ("head", "last_commit_date"):
-                    if existing.get("git", {}).get(key):
-                        facts["git"][key] = existing["git"][key]
             if not facts.get("github_actions", {}).get("latest") and existing.get(
                 "github_actions", {}
             ).get("latest"):
