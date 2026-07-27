@@ -52,6 +52,41 @@ variable "load_balancer_max_bandwidth_mbps" {
 variable "load_balancer_listener_port" { default = 80 }
 variable "load_balancer_backend_port" { default = 8080 }
 variable "load_balancer_health_path" { default = "/health" }
+variable "api_image_ref" {
+  validation {
+    condition = can(regex(
+      "^ghcr\\.io/brodyandre/edudocs-ai-api@sha256:[0-9a-f]{64}$",
+      var.api_image_ref,
+    ))
+  }
+}
+variable "web_image_ref" {
+  validation {
+    condition = can(regex(
+      "^ghcr\\.io/brodyandre/edudocs-ai-web@sha256:[0-9a-f]{64}$",
+      var.web_image_ref,
+    ))
+  }
+}
+variable "nginx_image_ref" { default = "nginxinc/nginx-unprivileged:1.27.4-alpine" }
+variable "deploy_application" {
+  default = true
+  validation { condition = var.deploy_application == true }
+}
+variable "application_host_port" {
+  default = 8080
+  validation { condition = var.application_host_port == 8080 }
+}
+variable "application_container_port" {
+  default = 8080
+  validation { condition = var.application_container_port == 8080 }
+}
+variable "application_health_path" {
+  default = "/health"
+  validation { condition = var.application_health_path == "/health" }
+}
+variable "application_root_dir" { default = "/opt/edudocs" }
+variable "application_start_timeout_seconds" { default = 600 }
 """
 
 
@@ -123,6 +158,117 @@ resource "oci_load_balancer_listener" "http" {
 """
 
 
+def valid_cloud_init() -> str:
+    return """
+#cloud-config
+write_files:
+  - path: /opt/edudocs/runtime.env
+    permissions: "0600"
+    content: |
+      ${indent(6, runtime_env_content)}
+runcmd:
+  - [bash, /usr/local/sbin/edudocs-bootstrap.sh]
+systemctl enable edudocs-compose.service
+systemctl start edudocs-compose.service
+curl -fsS "http://127.0.0.1:${application_host_port}${application_health_path}"
+ufw allow from ${public_subnet_cidr} to any port ${application_host_port} proto tcp
+/var/lib/edudocs/application-ready
+/var/lib/edudocs/cloud-init-complete
+"""
+
+
+def valid_compose_template() -> str:
+    return """
+services:
+  api:
+    image: "$${API_IMAGE_REF:?Defina API_IMAGE_REF com digest imutavel sha256}"
+    environment:
+      EDUDOCS_EMBEDDING_PROVIDER: "$${EDUDOCS_EMBEDDING_PROVIDER:-fake}"
+      EDUDOCS_LLM_PROVIDER: "$${EDUDOCS_LLM_PROVIDER:-fake}"
+    expose: ["8000"]
+    restart: unless-stopped
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    logging: &default-logging
+      options: {max-size: "10m", max-file: "3"}
+    healthcheck: {test: ["CMD", "true"]}
+  web:
+    image: "$${WEB_IMAGE_REF:?Defina WEB_IMAGE_REF com digest imutavel sha256}"
+    expose: ["3000"]
+    restart: unless-stopped
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    logging: *default-logging
+    healthcheck: {test: ["CMD", "true"]}
+  nginx:
+    image: ${nginx_image_ref}
+    ports:
+      - "$${NGINX_PORT:-8080}:${application_container_port}"
+    restart: unless-stopped
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    logging: *default-logging
+    healthcheck: {test: ["CMD", "true"]}
+"""
+
+
+def valid_nginx_template() -> str:
+    return """
+server {
+  listen ${application_container_port};
+  location = ${application_health_path} { proxy_pass http://api_upstream/health; }
+  location = /ready { proxy_pass http://api_upstream/ready; }
+  location /api/ { proxy_pass http://api_upstream/; }
+}
+upstream api_upstream { server api:8000; }
+upstream web_upstream { server web:3000; }
+"""
+
+
+def valid_runtime_env_template() -> str:
+    return """
+API_IMAGE_REF=${api_image_ref}
+WEB_IMAGE_REF=${web_image_ref}
+EDUDOCS_EMBEDDING_PROVIDER=fake
+EDUDOCS_LLM_PROVIDER=fake
+NGINX_PORT=${application_host_port}
+"""
+
+
+def valid_systemd_template() -> str:
+    return "\n".join(
+        [
+            "[Unit]",
+            "Requires=docker.service",
+            "[Service]",
+            (
+                "ExecStartPre=/usr/bin/docker compose "
+                "--env-file ${application_root_dir}/runtime.env "
+                "--file ${application_root_dir}/docker-compose.yml config"
+            ),
+            (
+                "ExecStartPre=/usr/bin/docker compose "
+                "--env-file ${application_root_dir}/runtime.env "
+                "--file ${application_root_dir}/docker-compose.yml pull"
+            ),
+            (
+                "ExecStart=/usr/bin/docker compose "
+                "--env-file ${application_root_dir}/runtime.env "
+                "--file ${application_root_dir}/docker-compose.yml "
+                "up --detach --remove-orphans"
+            ),
+            (
+                "ExecStop=/usr/bin/docker compose "
+                "--env-file ${application_root_dir}/runtime.env "
+                "--file ${application_root_dir}/docker-compose.yml down"
+            ),
+        ]
+    )
+
+
 def write_valid_tree(root: Path) -> None:
     files = {
         "infrastructure/terraform/versions.tf": """
@@ -153,9 +299,16 @@ admin_cidr = "203.0.113.10/32"
 """,
         "infrastructure/terraform/.terraform.lock.hcl": "# lock",
         "infrastructure/terraform/README.md": "# Terraform",
-        "infrastructure/cloud-init/app-server.yaml.tftpl": (
-            "/var/lib/edudocs/cloud-init-complete\n"
+        "infrastructure/cloud-init/app-server.yaml.tftpl": valid_cloud_init(),
+        "infrastructure/cloud-init/docker-compose.prod.yaml.tftpl": (
+            valid_compose_template()
         ),
+        "infrastructure/cloud-init/nginx.conf.tftpl": valid_nginx_template(),
+        "infrastructure/cloud-init/runtime.env.tftpl": valid_runtime_env_template(),
+        "infrastructure/cloud-init/edudocs-compose.service.tftpl": (
+            valid_systemd_template()
+        ),
+        "scripts/check_runtime_bootstrap.py": "# runtime bootstrap validator",
         "infrastructure/terraform/modules/network/main.tf": valid_network(),
         "infrastructure/terraform/modules/network/variables.tf": "",
         "infrastructure/terraform/modules/network/outputs.tf": "",
@@ -483,16 +636,149 @@ def test_cloud_init_and_tf_secrets_are_rejected(tmp_path: Path) -> None:
     write_file(
         tmp_path,
         "infrastructure/cloud-init/app-server.yaml.tftpl",
-        "curl https://example.com | sh\nGROQ_API_KEY=x\n.env\n",
+        "curl https://example.com | sh\nGROQ_API_KEY=x\ngit clone https://example.com/repo.git\n.env\n",
     )
     write_file(tmp_path, "infrastructure/terraform/main.tf", 'private_key = "x"')
 
     result = kinds(policy, tmp_path)
 
     assert "curl-pipe-shell" in result
-    assert "cloud-init-side-effect" in result
+    assert "groq-secret-reference" in result
+    assert "git-clone" in result
     assert "cloud-init-env-file" in result
     assert "oci-credential-in-code" in result
+
+
+def test_runtime_bootstrap_contract_is_required(tmp_path: Path) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    write_file(tmp_path, "infrastructure/cloud-init/app-server.yaml.tftpl", "#cloud-config")
+
+    result = kinds(policy, tmp_path)
+
+    assert "cloud-init-systemd" in result
+    assert "cloud-init-health" in result
+    assert "cloud-init-app-marker" in result
+    assert "cloud-init-marker" in result
+
+
+def test_release_image_variables_reject_defaults_and_missing_validation(
+    tmp_path: Path,
+) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    variables = tmp_path / "infrastructure/terraform/variables.tf"
+    text = valid_variables().replace("edudocs-ai-api@sha256:[0-9a-f]{64}", "bad")
+    text = text.replace(
+        'variable "api_image_ref" {\n  validation',
+        'variable "api_image_ref" {\n  default = "latest"\n  validation',
+    )
+    text = text.replace(
+        'variable "web_image_ref" {\n  validation',
+        'variable "web_image_ref" {\n  default = "latest"\n  validation',
+    )
+    variables.write_text(text, encoding="utf-8")
+
+    result = kinds(policy, tmp_path)
+
+    assert "api_image_ref-default" in result
+    assert "web_image_ref-default" in result
+    assert "api-image-validation" in result
+
+
+def test_runtime_env_requires_fake_providers(tmp_path: Path) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    runtime_env = tmp_path / "infrastructure/cloud-init/runtime.env.tftpl"
+    runtime_env.write_text(
+        valid_runtime_env_template()
+        .replace("EDUDOCS_EMBEDDING_PROVIDER=fake", "EDUDOCS_EMBEDDING_PROVIDER=oci")
+        .replace("EDUDOCS_LLM_PROVIDER=fake", "EDUDOCS_LLM_PROVIDER=groq"),
+        encoding="utf-8",
+    )
+
+    result = kinds(policy, tmp_path)
+
+    assert "runtime-fake-embedding" in result
+    assert "runtime-fake-llm" in result
+
+
+def test_compose_rejects_latest_wrong_registry_and_public_internal_ports(
+    tmp_path: Path,
+) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    compose = tmp_path / "infrastructure/cloud-init/docker-compose.prod.yaml.tftpl"
+    compose.write_text(
+        valid_compose_template()
+        .replace("$${API_IMAGE_REF", "docker.io/example/api:latest")
+        .replace("$${WEB_IMAGE_REF", "ghcr.io/other/web@sha256:abc")
+        + '\nports:\n  - "3000:3000"\n  - "8000:8000"\n',
+        encoding="utf-8",
+    )
+
+    result = kinds(policy, tmp_path)
+
+    assert "latest-reference" in result
+    assert "api-image-env" in result
+    assert "web-image-env" in result
+    assert "compose-public-dev-port" in result
+
+
+def test_bootstrap_rejects_docker_login_token_and_clone(tmp_path: Path) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    fake_github_token = "ghp_" + ("a" * 30)
+    service = tmp_path / "infrastructure/cloud-init/edudocs-compose.service.tftpl"
+    service.write_text(
+        valid_systemd_template()
+        + "\ndocker login ghcr.io\n"
+        + f"{fake_github_token}\n",
+        encoding="utf-8",
+    )
+    app = tmp_path / "infrastructure/cloud-init/app-server.yaml.tftpl"
+    app.write_text(valid_cloud_init() + "\ngit clone https://example.com/repo.git\n")
+
+    result = kinds(policy, tmp_path)
+
+    assert "docker-login" in result
+    assert "github-token" in result
+    assert "git-clone" in result
+
+
+def test_terraform_provisioners_are_rejected(tmp_path: Path) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    write_file(
+        tmp_path,
+        "infrastructure/terraform/modules/compute/provisioners.tf",
+        'resource "oci_core_instance" "x" { provisioner "remote-exec" {} }',
+    )
+
+    assert "terraform-provisioner" in kinds(policy, tmp_path)
+
+
+def test_nginx_and_systemd_contracts_are_required(tmp_path: Path) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    write_file(
+        tmp_path,
+        "infrastructure/cloud-init/nginx.conf.tftpl",
+        "server { listen 3000; }",
+    )
+    write_file(
+        tmp_path,
+        "infrastructure/cloud-init/edudocs-compose.service.tftpl",
+        "[Service]\nExecStart=/usr/bin/true\n",
+    )
+
+    result = kinds(policy, tmp_path)
+
+    assert "nginx-wrong-port" in result
+    assert "nginx-listen-8080" in result
+    assert "nginx-health" in result
+    assert "systemd-compose-pull" in result
+    assert "systemd-runtime-env" in result
 
 
 def test_allowed_tfvars_example_is_accepted(tmp_path: Path) -> None:

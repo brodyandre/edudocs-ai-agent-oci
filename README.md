@@ -204,7 +204,7 @@ flowchart LR
     OCI -. Nginx Docker .-> N
 ```
 
-No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única porta pública padrão é `8080`, servida pelo Nginx. A infraestrutura OCI agora possui Terraform validável para VCN, Compute ARM64, cloud-init, OCI Flexible Load Balancer público 10 Mbps e bucket privado opcional, mas ainda não houve `plan`, `apply` nem deploy publicado.
+No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única porta pública padrão é `8080`, servida pelo Nginx. A infraestrutura OCI agora possui Terraform validável para VCN, Compute ARM64, cloud-init com bootstrap declarativo da aplicação, OCI Flexible Load Balancer público 10 Mbps e bucket privado opcional, mas ainda não houve `plan`, `apply` nem deploy OCI ativo.
 
 [Voltar ao índice](#índice)
 
@@ -219,7 +219,7 @@ No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única
 | Testes | pytest `>=8.0,<9`, Ruff `>=0.8,<0.14`, Vitest `^3.2.4` |
 | Containers | Docker Compose, Nginx unprivileged, imagens locais para API e web |
 | CI/CD | Quality, API CI, Web CI, Containers CI e Publish Images manual no GitHub Actions |
-| Infraestrutura OCI | Terraform `>=1.15,<1.16`, provider `oracle/oci ~> 8.23`, Compute ARM64 A1 Flex, Flexible Load Balancer 10 Mbps, cloud-init e política estática |
+| Infraestrutura OCI | Terraform `>=1.15,<1.16`, provider `oracle/oci ~> 8.23`, Compute ARM64 A1 Flex, Flexible Load Balancer 10 Mbps, cloud-init com systemd/Compose e política estática |
 
 [Voltar ao índice](#índice)
 
@@ -296,6 +296,8 @@ API_IMAGE_REF=ghcr.io/brodyandre/edudocs-ai-api@sha256:SUBSTITUA \
 WEB_IMAGE_REF=ghcr.io/brodyandre/edudocs-ai-web@sha256:SUBSTITUA \
 docker compose -f docker-compose.prod.yml up -d
 ```
+
+No Terraform OCI, os mesmos valores entram por `api_image_ref` e `web_image_ref` em `terraform.tfvars` local, nunca por default versionado. O bootstrap usa `EDUDOCS_LLM_PROVIDER=fake` e `EDUDOCS_EMBEDDING_PROVIDER=fake` para validar infraestrutura sem segredo.
 
 O primeiro deploy público pode usar `FakeProvider` para validar infraestrutura, containers, Load Balancer, health checks, interface e integração sem gravar segredo no Terraform state.
 
@@ -409,7 +411,7 @@ Concluído:
 - OCI Flexible Load Balancer declarado com backend set, backend privado, listener HTTP 80 e health check `/health`.
 - Dois NSGs separados: Load Balancer público em 80 e aplicação privada em 8080 a partir do NSG do Load Balancer.
 - Outputs para endpoint futuro `http://<load_balancer_public_ip>` e health URL.
-- Cloud-init para preparar a VM base sem iniciar deploy.
+- Cloud-init com bootstrap declarativo da aplicação via systemd, Docker Compose, Nginx 8080 e imagens GHCR por digest.
 - Validações Terraform, política de custo e CI sem credenciais.
 
 Próximo:
@@ -417,7 +419,7 @@ Próximo:
 - Confirmar credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state.
 - Executar primeiro `terraform plan` real somente após aprovação.
 - Provisionar OCI somente após revisão do plano.
-- Executar publicação manual GHCR, obter digests e iniciar a aplicação na VM.
+- Usar os digests GHCR validados em `terraform.tfvars` local para iniciar a aplicação na VM durante o primeiro apply aprovado.
 - Obter IP real do Load Balancer após apply.
 - Validar Groq real fora do ambiente de teste.
 - Configurar domínio e HTTPS.
@@ -427,7 +429,7 @@ Próximo:
 
 ## Infraestrutura OCI
 
-A OCI possui código Terraform criado em `infrastructure/terraform`, com módulos de rede, compute, load balancer, object storage opcional e cloud-init em `infrastructure/cloud-init/app-server.yaml.tftpl`. Esta etapa valida o código e a política, mas não executa `plan`, `apply` ou `destroy`, e não afirma deploy ativo.
+A OCI possui código Terraform criado em `infrastructure/terraform`, com módulos de rede, compute, load balancer, object storage opcional e cloud-init em `infrastructure/cloud-init/app-server.yaml.tftpl`. O cloud-init renderiza Compose produtivo, `runtime.env` não secreto, Nginx 8080 e unidade systemd para iniciar API/Web por imagens GHCR imutáveis. Esta etapa valida o código e a política, mas não executa `plan`, `apply` ou `destroy`, e não afirma deploy ativo.
 
 O acesso público futuro será exclusivamente pelo OCI Flexible Load Balancer:
 
@@ -470,7 +472,7 @@ Documentação relacionada:
 | Interface gráfica | Concluída para uso local |
 | Terraform OCI | Concluído e validado sem credenciais reais |
 | Load Balancer OCI | Declarado em Terraform; endpoint real pendente |
-| Imagens GHCR | Workflow e política preparados; publicação manual por digest |
+| Imagens GHCR | Publicadas por workflow manual e validadas por digest |
 | Deploy OCI | Pendente |
 | Screenshots locais | Concluídos e inseridos contextualmente no README |
 | Evidência OCI | Reservada para etapa futura |
@@ -485,7 +487,7 @@ Documentação relacionada:
 - Não há autenticação.
 - O histórico não é persistido entre sessões.
 - O provedor Groq real ainda não foi validado nesta etapa.
-- A OCI ainda não foi implantada; somente o código Terraform, incluindo o Load Balancer, foi criado e validado.
+- A OCI ainda não foi implantada; somente o código Terraform, incluindo Load Balancer e bootstrap declarativo da aplicação, foi criado e validado.
 - As métricas `fact_coverage_rate`, `complete_document_citation_rate` e `page_recall_at_k` indicam pontos reais de melhoria.
 
 [Voltar ao índice](#índice)
@@ -496,8 +498,8 @@ Documentação relacionada:
 2. Confirmar elegibilidade do OCI Flexible Load Balancer 10 Mbps na tenancy.
 3. Executar e revisar o primeiro `terraform plan` real.
 4. Provisionar OCI somente após aprovação do plano.
-5. Publicar imagens API/Web multiarch no GHCR e validar pull anônimo.
-6. Publicar a aplicação em Compute ARM64 usando digests imutáveis.
+5. Manter imagens API/Web multiarch no GHCR e validar pull anônimo por digest.
+6. Publicar a aplicação em Compute ARM64 usando digests imutáveis somente após apply aprovado.
 7. Validar `http://<load_balancer_public_ip>` e depois configurar DNS.
 8. Configurar domínio, HTTPS e variáveis seguras.
 9. Produzir capturas reais de aplicação e infraestrutura.

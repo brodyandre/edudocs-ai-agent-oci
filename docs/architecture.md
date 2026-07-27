@@ -128,7 +128,7 @@ A execução local usa Docker Compose para subir API, interface, Nginx e volume 
 
 ## 16. Deploy na OCI
 
-O deploy planejado usa OCI Flexible Load Balancer público como único endpoint HTTP, encaminhando para Nginx em Docker na VM Ampere A1 pela porta privada 8080. O código em `infrastructure/terraform` cria VCN, subnet pública, dois NSGs, instância A1 Flex, Load Balancer flexível 10/10 Mbps, cloud-init e bucket privado opcional. Ainda não houve `terraform plan`, `apply` ou deploy real.
+O deploy planejado usa OCI Flexible Load Balancer público como único endpoint HTTP, encaminhando para Nginx em Docker na VM Ampere A1 pela porta privada 8080. O código em `infrastructure/terraform` cria VCN, subnet pública, dois NSGs, instância A1 Flex, Load Balancer flexível 10/10 Mbps, cloud-init com systemd/Compose por digests GHCR e bucket privado opcional. Ainda não houve `terraform plan`, `apply` ou deploy real.
 
 ## 17. Compatibilidade ARM64
 

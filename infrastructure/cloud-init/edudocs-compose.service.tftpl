@@ -1,0 +1,19 @@
+[Unit]
+Description=EduDocs AI Docker Compose application
+Requires=docker.service
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=${application_root_dir}
+TimeoutStartSec=${application_start_timeout_seconds}
+Environment=COMPOSE_PROJECT_NAME=edudocs
+ExecStartPre=/usr/bin/docker compose --project-name edudocs --env-file ${application_root_dir}/runtime.env --file ${application_root_dir}/docker-compose.yml config
+ExecStartPre=/usr/bin/docker compose --project-name edudocs --env-file ${application_root_dir}/runtime.env --file ${application_root_dir}/docker-compose.yml pull
+ExecStart=/usr/bin/docker compose --project-name edudocs --env-file ${application_root_dir}/runtime.env --file ${application_root_dir}/docker-compose.yml up --detach --remove-orphans
+ExecStop=/usr/bin/docker compose --project-name edudocs --env-file ${application_root_dir}/runtime.env --file ${application_root_dir}/docker-compose.yml down
+
+[Install]
+WantedBy=multi-user.target

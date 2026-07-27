@@ -253,6 +253,103 @@ variable "load_balancer_health_path" {
   }
 }
 
+variable "api_image_ref" {
+  description = "Referencia imutavel da imagem publica GHCR da API, sempre por digest sha256."
+  type        = string
+
+  validation {
+    condition     = can(regex("^ghcr\\.io/brodyandre/edudocs-ai-api@sha256:[0-9a-f]{64}$", var.api_image_ref))
+    error_message = "api_image_ref deve usar ghcr.io/brodyandre/edudocs-ai-api@sha256:<64 hex>."
+  }
+}
+
+variable "web_image_ref" {
+  description = "Referencia imutavel da imagem publica GHCR do Web, sempre por digest sha256."
+  type        = string
+
+  validation {
+    condition     = can(regex("^ghcr\\.io/brodyandre/edudocs-ai-web@sha256:[0-9a-f]{64}$", var.web_image_ref))
+    error_message = "web_image_ref deve usar ghcr.io/brodyandre/edudocs-ai-web@sha256:<64 hex>."
+  }
+}
+
+variable "nginx_image_ref" {
+  description = "Imagem publica do Nginx unprivileged usada como proxy local da VM."
+  type        = string
+  default     = "nginxinc/nginx-unprivileged:1.27.4-alpine"
+
+  validation {
+    condition     = can(regex("^nginxinc/nginx-unprivileged:[0-9][A-Za-z0-9._-]*-alpine$", var.nginx_image_ref)) && !strcontains(lower(var.nginx_image_ref), "latest")
+    error_message = "nginx_image_ref deve usar nginxinc/nginx-unprivileged com tag fixa e nunca latest."
+  }
+}
+
+variable "deploy_application" {
+  description = "Controla o bootstrap declarativo da aplicacao. Nesta entrega deve permanecer true."
+  type        = bool
+  default     = true
+
+  validation {
+    condition     = var.deploy_application == true
+    error_message = "deploy_application deve permanecer true nesta entrega."
+  }
+}
+
+variable "application_host_port" {
+  description = "Porta local da VM usada pelo Nginx e pelo backend do Load Balancer."
+  type        = number
+  default     = 8080
+
+  validation {
+    condition     = var.application_host_port == 8080
+    error_message = "application_host_port deve ser exatamente 8080."
+  }
+}
+
+variable "application_container_port" {
+  description = "Porta interna do container Nginx."
+  type        = number
+  default     = 8080
+
+  validation {
+    condition     = var.application_container_port == 8080
+    error_message = "application_container_port deve ser exatamente 8080."
+  }
+}
+
+variable "application_health_path" {
+  description = "Caminho de health local da aplicacao."
+  type        = string
+  default     = "/health"
+
+  validation {
+    condition     = var.application_health_path == "/health"
+    error_message = "application_health_path deve ser exatamente /health."
+  }
+}
+
+variable "application_root_dir" {
+  description = "Diretorio raiz da aplicacao na VM."
+  type        = string
+  default     = "/opt/edudocs"
+
+  validation {
+    condition     = var.application_root_dir == "/opt/edudocs"
+    error_message = "application_root_dir deve ser exatamente /opt/edudocs."
+  }
+}
+
+variable "application_start_timeout_seconds" {
+  description = "Tempo maximo para aguardar a aplicacao ficar saudavel durante o bootstrap."
+  type        = number
+  default     = 600
+
+  validation {
+    condition     = var.application_start_timeout_seconds >= 300 && var.application_start_timeout_seconds <= 1200
+    error_message = "application_start_timeout_seconds deve ficar entre 300 e 1200."
+  }
+}
+
 variable "create_backup_bucket" {
   description = "Cria um bucket privado opcional para backups futuros."
   type        = bool

@@ -13,6 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_FILES = {
     "infrastructure/cloud-init/app-server.yaml.tftpl",
+    "infrastructure/cloud-init/docker-compose.prod.yaml.tftpl",
+    "infrastructure/cloud-init/nginx.conf.tftpl",
+    "infrastructure/cloud-init/runtime.env.tftpl",
+    "infrastructure/cloud-init/edudocs-compose.service.tftpl",
     "infrastructure/terraform/versions.tf",
     "infrastructure/terraform/providers.tf",
     "infrastructure/terraform/data.tf",
@@ -35,6 +39,7 @@ REQUIRED_FILES = {
     "infrastructure/terraform/modules/object-storage/main.tf",
     "infrastructure/terraform/modules/object-storage/variables.tf",
     "infrastructure/terraform/modules/object-storage/outputs.tf",
+    "scripts/check_runtime_bootstrap.py",
 }
 
 FORBIDDEN_INFRASTRUCTURE_RESOURCES = {
@@ -256,6 +261,14 @@ def find_provider_and_secret_risks(root: Path) -> list[Finding]:
     for path in tf_files:
         text = read_text(path)
         rel = relative(path, root)
+        if re.search(r'\bprovisioner\s+"(?:remote-exec|local-exec)"', text):
+            findings.append(
+                Finding(
+                    rel,
+                    "terraform-provisioner",
+                    "Terraform nao pode usar remote-exec ou local-exec.",
+                )
+            )
         if re.search(r"\b(user_ocid|fingerprint|private_key_path|private_key)\b", text):
             findings.append(
                 Finding(
@@ -366,6 +379,60 @@ def find_limit_risks(root: Path) -> list[Finding]:
                     relative(variables, root),
                     f"{name}-default",
                     f"{name} deve ter default {expected}.",
+                )
+            )
+
+    if default_value(text, "api_image_ref") is not None:
+        findings.append(
+            Finding(
+                relative(variables, root),
+                "api_image_ref-default",
+                "api_image_ref nao deve ter default versionado.",
+            )
+        )
+    if default_value(text, "web_image_ref") is not None:
+        findings.append(
+            Finding(
+                relative(variables, root),
+                "web_image_ref-default",
+                "web_image_ref nao deve ter default versionado.",
+            )
+        )
+
+    expected_app_defaults = {
+        "nginx_image_ref": '"nginxinc/nginx-unprivileged:1.27.4-alpine"',
+        "deploy_application": "true",
+        "application_host_port": "8080",
+        "application_container_port": "8080",
+        "application_health_path": '"/health"',
+        "application_root_dir": '"/opt/edudocs"',
+        "application_start_timeout_seconds": "600",
+    }
+    for name, expected in expected_app_defaults.items():
+        if default_value(text, name) != expected:
+            findings.append(
+                Finding(
+                    relative(variables, root),
+                    f"{name}-default",
+                    f"{name} deve ter default {expected}.",
+                )
+            )
+
+    required_variable_text = {
+        "api-image-validation": "edudocs-ai-api@sha256:[0-9a-f]{64}",
+        "web-image-validation": "edudocs-ai-web@sha256:[0-9a-f]{64}",
+        "deploy-application-validation": "var.deploy_application == true",
+        "application-host-port-validation": "var.application_host_port == 8080",
+        "application-container-port-validation": "var.application_container_port == 8080",
+        "application-health-path-validation": 'var.application_health_path == "/health"',
+    }
+    for kind, needle in required_variable_text.items():
+        if needle not in text:
+            findings.append(
+                Finding(
+                    relative(variables, root),
+                    kind,
+                    "Variavel de bootstrap da aplicacao nao contem validacao esperada.",
                 )
             )
 
@@ -693,7 +760,8 @@ def find_network_and_cost_risks(root: Path) -> list[Finding]:
 
 def find_cloud_init_risks(root: Path) -> list[Finding]:
     findings: list[Finding] = []
-    for path in (root / "infrastructure" / "cloud-init").glob("*.tftpl"):
+    cloud_init_dir = root / "infrastructure" / "cloud-init"
+    for path in cloud_init_dir.glob("*.tftpl"):
         text = read_text(path)
         rel = relative(path, root)
         if re.search(r"curl\b.*\|\s*(?:sh|bash)", text):
@@ -702,27 +770,159 @@ def find_cloud_init_risks(root: Path) -> list[Finding]:
                     rel, "curl-pipe-shell", "cloud-init nao pode usar curl pipe shell."
                 )
             )
-        for forbidden in ("git clone", "docker pull", "docker compose", "GROQ_API_KEY"):
-            if forbidden in text:
+        forbidden_patterns = {
+            "git-clone": r"\bgit\s+clone\b",
+            "docker-login": r"\bdocker\s+login\b",
+            "latest-reference": r"(?<![A-Za-z0-9_-])latest(?![A-Za-z0-9_-])",
+            "groq-secret-reference": r"\bGROQ_API_KEY\b",
+            "github-token": r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b",
+            "github-pat": r"\bgithub_pat_[A-Za-z0-9_]{20,}\b",
+            "private-key": r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----",
+            "real-ocid-risk": r"\bocid1\.[A-Za-z0-9_.-]+",
+        }
+        for kind, pattern in forbidden_patterns.items():
+            if re.search(pattern, text, flags=re.IGNORECASE):
                 findings.append(
                     Finding(
                         rel,
-                        "cloud-init-side-effect",
-                        f"cloud-init nao deve conter {forbidden}.",
+                        kind,
+                        "Template de bootstrap contem conteudo proibido.",
                     )
                 )
-        if re.search(r"(?m)(^|/)\.env\b", text):
+        if re.search(r"(?m)(^|/)\.env(?:\s|$)", text):
             findings.append(
                 Finding(rel, "cloud-init-env-file", "cloud-init nao deve criar .env.")
             )
-        if "/var/lib/edudocs/cloud-init-complete" not in text:
+
+    app_server = cloud_init_dir / "app-server.yaml.tftpl"
+    compose = cloud_init_dir / "docker-compose.prod.yaml.tftpl"
+    nginx = cloud_init_dir / "nginx.conf.tftpl"
+    runtime_env = cloud_init_dir / "runtime.env.tftpl"
+    service = cloud_init_dir / "edudocs-compose.service.tftpl"
+
+    if app_server.is_file():
+        text = read_text(app_server)
+        required = {
+            "cloud-init-systemd": "systemctl enable edudocs-compose.service",
+            "cloud-init-systemd-start": "systemctl start edudocs-compose.service",
+            "cloud-init-health": "http://127.0.0.1:${application_host_port}${application_health_path}",
+            "cloud-init-app-marker": "/var/lib/edudocs/application-ready",
+            "cloud-init-marker": "/var/lib/edudocs/cloud-init-complete",
+            "cloud-init-runtime-env-permission": 'permissions: "0600"',
+            "cloud-init-load-balancer-only": "ufw allow from ${public_subnet_cidr} to any port ${application_host_port} proto tcp",
+        }
+        for kind, needle in required.items():
+            if needle not in text:
+                findings.append(
+                    Finding(
+                        relative(app_server, root),
+                        kind,
+                        "cloud-init nao contem contrato obrigatorio de bootstrap.",
+                    )
+                )
+
+    if compose.is_file():
+        text = read_text(compose)
+        compose_requirements = {
+            "api-image-env": "$${API_IMAGE_REF" in text,
+            "web-image-env": "$${WEB_IMAGE_REF" in text,
+            "fake-llm-provider": "EDUDOCS_LLM_PROVIDER" in text
+            and "fake" in text,
+            "fake-embedding-provider": "EDUDOCS_EMBEDDING_PROVIDER" in text
+            and "fake" in text,
+            "compose-healthcheck": text.count("healthcheck:") >= 3,
+            "compose-read-only": text.count("read_only: true") >= 3,
+            "compose-cap-drop": text.count("cap_drop:") >= 3,
+            "compose-no-new-privileges": text.count("no-new-privileges:true") >= 3,
+            "compose-restart-policy": text.count("restart: unless-stopped") >= 3,
+            "compose-logging": "max-size" in text and "max-file" in text,
+            "nginx-only-host-port": '"$${NGINX_PORT:-8080}:${application_container_port}"'
+            in text,
+        }
+        for kind, passed in compose_requirements.items():
+            if not passed:
+                findings.append(
+                    Finding(
+                        relative(compose, root),
+                        kind,
+                        "docker-compose produtivo nao contem contrato obrigatorio.",
+                    )
+                )
+        if re.search(r'ports:\s*\n\s*-\s*"[0-9$:{}-]*:(?:3000|8000)"', text):
             findings.append(
                 Finding(
-                    rel,
-                    "cloud-init-marker",
-                    "cloud-init deve registrar marcador de conclusao.",
+                    relative(compose, root),
+                    "compose-public-dev-port",
+                    "Compose produtivo nao pode publicar 3000 ou 8000 no host.",
                 )
             )
+
+    if nginx.is_file():
+        text = read_text(nginx)
+        nginx_requirements = {
+            "nginx-listen-8080": "listen ${application_container_port};",
+            "nginx-health": "location = ${application_health_path}",
+            "nginx-ready": "location = /ready",
+            "nginx-api": "location /api/",
+            "nginx-api-upstream": "server api:8000;",
+            "nginx-web-upstream": "server web:3000;",
+        }
+        for kind, needle in nginx_requirements.items():
+            if needle not in text:
+                findings.append(
+                    Finding(
+                        relative(nginx, root),
+                        kind,
+                        "Nginx renderizado nao segue contrato esperado.",
+                    )
+                )
+        if re.search(r"listen\s+(3000|8000|80);", text):
+            findings.append(
+                Finding(
+                    relative(nginx, root),
+                    "nginx-wrong-port",
+                    "Nginx da VM deve escutar somente 8080.",
+                )
+            )
+
+    if runtime_env.is_file():
+        text = read_text(runtime_env)
+        runtime_requirements = {
+            "runtime-api-image": "API_IMAGE_REF=${api_image_ref}",
+            "runtime-web-image": "WEB_IMAGE_REF=${web_image_ref}",
+            "runtime-fake-embedding": "EDUDOCS_EMBEDDING_PROVIDER=fake",
+            "runtime-fake-llm": "EDUDOCS_LLM_PROVIDER=fake",
+            "runtime-nginx-port": "NGINX_PORT=${application_host_port}",
+        }
+        for kind, needle in runtime_requirements.items():
+            if needle not in text:
+                findings.append(
+                    Finding(
+                        relative(runtime_env, root),
+                        kind,
+                        "runtime.env renderizado nao segue contrato esperado.",
+                    )
+                )
+
+    if service.is_file():
+        text = read_text(service)
+        service_requirements = {
+            "systemd-docker-required": "Requires=docker.service",
+            "systemd-compose-config": " config",
+            "systemd-compose-pull": " pull",
+            "systemd-compose-up": " up --detach --remove-orphans",
+            "systemd-compose-down": " down",
+            "systemd-runtime-env": "--env-file ${application_root_dir}/runtime.env",
+        }
+        for kind, needle in service_requirements.items():
+            if needle not in text:
+                findings.append(
+                    Finding(
+                        relative(service, root),
+                        kind,
+                        "Unidade systemd nao segue contrato esperado.",
+                    )
+                )
     return findings
 
 

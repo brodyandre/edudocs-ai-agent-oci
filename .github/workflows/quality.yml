@@ -84,6 +84,9 @@ jobs:
       - name: Validate Terraform policy
         run: python3 scripts/check_terraform_policy.py
 
+      - name: Validate OCI runtime bootstrap
+        run: python3 scripts/check_runtime_bootstrap.py
+
       - name: Test Terraform policy
         run: python -m pytest apps/api/tests/test_terraform_policy.py
 

@@ -7,7 +7,6 @@ packages:
   - curl
   - gnupg
   - lsb-release
-  - unzip
   - jq
   - ufw
 
@@ -21,12 +20,13 @@ write_files:
 
       export DEBIAN_FRONTEND=noninteractive
       LOG_FILE="/var/log/edudocs-cloud-init.log"
-      MARKER="/var/lib/edudocs/cloud-init-complete"
+      CLOUD_MARKER="/var/lib/edudocs/cloud-init-complete"
+      APP_MARKER="/var/lib/edudocs/application-ready"
 
       exec > >(tee -a "$LOG_FILE") 2>&1
 
-      if [ -f "$MARKER" ]; then
-        echo "EduDocs bootstrap already completed."
+      if [ -f "$CLOUD_MARKER" ] && [ -f "$APP_MARKER" ]; then
+        echo "EduDocs application bootstrap already completed."
         exit 0
       fi
 
@@ -47,22 +47,68 @@ write_files:
 
       systemctl enable docker
       systemctl start docker
-      usermod -aG docker ubuntu || true
 
-      install -d -m 0755 /opt/edudocs
-      install -d -m 0750 /opt/edudocs/config
-      install -d -m 0750 /opt/edudocs/data
-      install -d -m 0750 /opt/edudocs/data/index
-      install -d -m 0750 /opt/edudocs/logs
-      chown -R ubuntu:ubuntu /opt/edudocs
-
+      install -d -m 0755 "${application_root_dir}"
+      install -d -m 0750 "${application_root_dir}/data"
+      install -d -m 0750 "${application_root_dir}/logs"
       install -d -m 0755 /var/lib/edudocs
-      printf 'project=%s\ncompleted_at=%s\n' "${project_name}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MARKER"
-      chmod 0644 "$MARKER"
+      chown -R root:root "${application_root_dir}"
+      chmod 0600 "${application_root_dir}/runtime.env"
 
-      echo "EduDocs bootstrap completed. Application deploy remains a manual future step."
+      if command -v ufw >/dev/null 2>&1; then
+        ufw default deny incoming
+        ufw default allow outgoing
+        ufw allow from ${admin_cidr} to any port 22 proto tcp
+        ufw allow from ${public_subnet_cidr} to any port ${application_host_port} proto tcp
+        ufw --force enable
+      fi
+
+      systemctl daemon-reload
+      systemctl enable edudocs-compose.service
+      systemctl start edudocs-compose.service
+
+      deadline=$((SECONDS + ${application_start_timeout_seconds}))
+      until curl -fsS "http://127.0.0.1:${application_host_port}${application_health_path}" >/dev/null; do
+        if [ "$SECONDS" -ge "$deadline" ]; then
+          systemctl status edudocs-compose.service --no-pager || true
+          docker compose --project-name edudocs --env-file "${application_root_dir}/runtime.env" --file "${application_root_dir}/docker-compose.yml" ps || true
+          exit 1
+        fi
+        sleep 5
+      done
+
+      printf 'project=%s\nready_at=%s\nhealth=%s\n' "${project_name}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "http://127.0.0.1:${application_host_port}${application_health_path}" > "$APP_MARKER"
+      chmod 0644 "$APP_MARKER"
+      printf 'project=%s\ncompleted_at=%s\n' "${project_name}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$CLOUD_MARKER"
+      chmod 0644 "$CLOUD_MARKER"
+
+      echo "EduDocs application bootstrap completed."
+
+  - path: ${application_root_dir}/docker-compose.yml
+    owner: root:root
+    permissions: "0644"
+    content: |
+      ${indent(6, compose_content)}
+
+  - path: ${application_root_dir}/nginx.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      ${indent(6, nginx_content)}
+
+  - path: ${application_root_dir}/runtime.env
+    owner: root:root
+    permissions: "0600"
+    content: |
+      ${indent(6, runtime_env_content)}
+
+  - path: /etc/systemd/system/edudocs-compose.service
+    owner: root:root
+    permissions: "0644"
+    content: |
+      ${indent(6, systemd_content)}
 
 runcmd:
   - [bash, /usr/local/sbin/edudocs-bootstrap.sh]
 
-final_message: "EduDocs OCI base server prepared. Check /var/log/edudocs-cloud-init.log and /var/lib/edudocs/cloud-init-complete."
+final_message: "EduDocs OCI application prepared. Check /var/log/edudocs-cloud-init.log, /var/lib/edudocs/cloud-init-complete and /var/lib/edudocs/application-ready."

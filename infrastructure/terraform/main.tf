@@ -12,20 +12,30 @@ module "network" {
 module "compute" {
   source = "./modules/compute"
 
-  compartment_ocid         = var.compartment_ocid
-  availability_domain      = local.selected_availability_domain
-  name_prefix              = local.name_prefix
-  compute_shape            = var.compute_shape
-  compute_ocpus            = var.compute_ocpus
-  compute_memory_gbs       = var.compute_memory_gbs
-  boot_volume_size_gbs     = var.boot_volume_size_gbs
-  image_ocid               = local.selected_image_ocid
-  ssh_public_key_path      = var.ssh_public_key_path
-  public_subnet_id         = module.network.public_subnet_id
-  nsg_ids                  = [module.network.app_nsg_id]
-  admin_cidr               = var.admin_cidr
-  cloud_init_template_path = "${path.module}/../cloud-init/app-server.yaml.tftpl"
-  freeform_tags            = local.common_tags
+  compartment_ocid                  = var.compartment_ocid
+  availability_domain               = local.selected_availability_domain
+  name_prefix                       = local.name_prefix
+  compute_shape                     = var.compute_shape
+  compute_ocpus                     = var.compute_ocpus
+  compute_memory_gbs                = var.compute_memory_gbs
+  boot_volume_size_gbs              = var.boot_volume_size_gbs
+  image_ocid                        = local.selected_image_ocid
+  ssh_public_key_path               = var.ssh_public_key_path
+  public_subnet_id                  = module.network.public_subnet_id
+  nsg_ids                           = [module.network.app_nsg_id]
+  admin_cidr                        = var.admin_cidr
+  cloud_init_template_path          = "${path.module}/../cloud-init/app-server.yaml.tftpl"
+  public_subnet_cidr                = var.public_subnet_cidr
+  api_image_ref                     = var.api_image_ref
+  web_image_ref                     = var.web_image_ref
+  nginx_image_ref                   = var.nginx_image_ref
+  deploy_application                = var.deploy_application
+  application_host_port             = var.application_host_port
+  application_container_port        = var.application_container_port
+  application_health_path           = var.application_health_path
+  application_root_dir              = var.application_root_dir
+  application_start_timeout_seconds = var.application_start_timeout_seconds
+  freeform_tags                     = local.common_tags
 }
 
 module "load_balancer" {

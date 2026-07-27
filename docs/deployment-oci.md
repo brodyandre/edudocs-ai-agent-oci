@@ -1,6 +1,6 @@
 # Deployment OCI
 
-Este documento descreve o caminho de deploy previsto para o EduDocs AI na OCI. A entrega atual valida apenas código Terraform e cloud-init; ela não cria recursos reais.
+Este documento descreve o caminho de deploy previsto para o EduDocs AI na OCI. A entrega atual valida código Terraform, cloud-init e bootstrap declarativo da aplicação; ela não cria recursos reais.
 
 ## Estado Atual
 
@@ -10,10 +10,10 @@ Concluído:
 - Módulos de rede, compute, load balancer e object storage opcional.
 - OCI Flexible Load Balancer público declarado com 10/10 Mbps, listener HTTP 80, backend set, backend privado 8080 e health checker `/health`.
 - Dois NSGs separados: Load Balancer público e aplicação privada.
-- Cloud-init para preparar a VM base.
-- Workflow manual preparado para publicar imagens API/Web multiarch no GHCR.
-- Compose de produção preparado para usar referências imutáveis por digest.
-- Validação por `terraform fmt`, `terraform init -backend=false`, `terraform validate` e política local.
+- Cloud-init para instalar Docker, renderizar Compose produtivo, `runtime.env` não secreto, Nginx 8080 e unidade systemd.
+- Workflow manual preparado e validado para publicar imagens API/Web multiarch no GHCR.
+- Compose de produção preparado para usar referências imutáveis por digest e providers `fake`.
+- Validação por `terraform fmt`, `terraform init -backend=false`, `terraform validate`, política local e `scripts/check_runtime_bootstrap.py`.
 - CI sem credenciais e sem `plan/apply/destroy`.
 
 Pendente:
@@ -24,12 +24,12 @@ Pendente:
 - Confirmação de elegibilidade do Flexible Load Balancer 10 Mbps na tenancy.
 - Primeiro `terraform plan` real.
 - Qualquer `terraform apply`.
-- Execução do workflow de publicação, start da aplicação, IP real do Load Balancer, Groq real, domínio, HTTPS e screenshots OCI.
+- IP real do Load Balancer, Groq real, domínio, HTTPS e screenshots OCI.
 
 ## Fluxo Seguro Futuro
 
-1. Publicar imagens API/Web multiarch no GHCR.
-2. Obter `API_IMAGE_REF` e `WEB_IMAGE_REF` por digest pelo artefato `edudocs-container-release`.
+1. Confirmar `API_IMAGE_REF` e `WEB_IMAGE_REF` por digest pelo artefato `edudocs-container-release`.
+2. Confirmar que as imagens GHCR estão públicas e aceitam pull anônimo.
 3. Confirmar a conta OCI, tenancy, compartment, home region, capacidade A1 e Free Tier.
 4. Confirmar elegibilidade do OCI Flexible Load Balancer com mínimo 10 Mbps e máximo 10 Mbps.
 5. Definir `admin_cidr` com IP administrativo em `/32`.
@@ -39,20 +39,22 @@ Pendente:
 9. Somente após aprovação humana, rodar um primeiro `terraform plan` real.
 10. Revisar o plan.
 11. Somente após revisão do plano, considerar `terraform apply`.
-12. Instalar o pacote de runtime na VM e iniciar a aplicação.
+12. Durante o apply aprovado, o cloud-init instala Docker, faz pull anônimo dos digests, inicia `edudocs-compose.service` e aguarda `/health`.
 13. Validar `/health` pelo Load Balancer.
 14. Abrir `http://<IP-PUBLICO-DO-LOAD-BALANCER>`.
 
 ## Preparação Da Aplicação
 
-A VM criada pelo Terraform fica pronta para receber um deploy futuro, mas o cloud-init não instala nem inicia o EduDocs AI. Isso evita misturar provisionamento de infraestrutura com publicação de aplicação e reduz risco de segredos acidentais.
+O bootstrap da aplicação é declarativo e renderizado pelo Terraform para a VM. Ele não usa segredos, não clona repositório, não faz `docker login`, não usa `latest` e não depende de comando manual dentro da instância.
 
-Passos futuros esperados:
+Contrato atual do bootstrap:
 
 - Usar imagens API e web publicadas no GHCR por digest.
-- Criar arquivo de ambiente seguro fora do Git a partir de `deploy/oci/runtime.env.example`.
-- Iniciar Nginx em Docker na VM escutando `8080:8080`.
-- Executar a primeira validação em `http://<load_balancer_public_ip>`.
+- Renderizar `/opt/edudocs/runtime.env` com `API_IMAGE_REF`, `WEB_IMAGE_REF`, `EDUDOCS_LLM_PROVIDER=fake`, `EDUDOCS_EMBEDDING_PROVIDER=fake` e `NGINX_PORT=8080`.
+- Renderizar `/opt/edudocs/docker-compose.yml` com API e web sem portas publicadas no host.
+- Iniciar Nginx em Docker escutando `8080:8080`.
+- Criar `/var/lib/edudocs/application-ready` e `/var/lib/edudocs/cloud-init-complete` após `http://127.0.0.1:8080/health` responder.
+- Executar a primeira validação pública em `http://<load_balancer_public_ip>`.
 - Configurar DNS para uma URL nominal posteriormente.
 - Configurar HTTPS após domínio real em etapa futura.
 - Executar smoke test contra o Load Balancer.

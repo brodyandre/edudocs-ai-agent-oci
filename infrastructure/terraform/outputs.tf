@@ -63,6 +63,16 @@ output "load_balancer_health_url" {
   value       = module.load_balancer.load_balancer_health_url
 }
 
+output "application_expected_url" {
+  description = "URL publica esperada da aplicacao via Load Balancer apos apply real."
+  value       = module.load_balancer.load_balancer_url
+}
+
+output "application_expected_health_url" {
+  description = "URL publica esperada do health endpoint da aplicacao apos apply real."
+  value       = module.load_balancer.load_balancer_health_url
+}
+
 output "load_balancer_backend_set_name" {
   description = "Nome do backend set do Load Balancer."
   value       = module.load_balancer.backend_set_name

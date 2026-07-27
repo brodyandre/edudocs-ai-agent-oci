@@ -10,10 +10,10 @@ O código define:
 - Uma instância `VM.Standard.A1.Flex` com 2 OCPUs, 12 GB de memória e boot volume de 50 GB.
 - Um OCI Flexible Load Balancer público com 10 Mbps mínimo e 10 Mbps máximo.
 - Listener HTTP porta 80, backend set `ROUND_ROBIN`, backend no IP privado da VM porta 8080 e health checker `GET /health`.
-- Cloud-init para preparar Docker Engine, Docker Compose plugin, diretórios em `/opt/edudocs` e marcador de conclusão.
+- Cloud-init para instalar Docker, renderizar `docker-compose.yml`, `runtime.env`, Nginx, unidade systemd e aguardar o health check da aplicação.
 - Bucket privado opcional para backups, desabilitado por padrão.
 
-O código não executa deploy da aplicação, não publica imagem, não configura domínio, não emite HTTPS e não grava segredos. O deploy futuro consumirá imagens GHCR públicas por digest, sem credencial no Terraform ou no cloud-init.
+O código declara o bootstrap da aplicação por imagens GHCR públicas e imutáveis por digest, usando `FakeProvider` por padrão e sem gravar segredos no Terraform, no cloud-init ou no user data. A validação local e o CI não criam recursos, não executam `terraform plan` real, não fazem `apply`, não configuram domínio e não emitem HTTPS.
 
 ## Pré-requisitos Antes De Um Plan Real
 
@@ -43,6 +43,7 @@ terraform -chdir=infrastructure/terraform fmt -recursive -check
 terraform -chdir=infrastructure/terraform init -backend=false
 terraform -chdir=infrastructure/terraform validate
 python3 scripts/check_terraform_policy.py
+python3 scripts/check_runtime_bootstrap.py
 ```
 
 Não rode `terraform plan`, `terraform apply` ou `terraform destroy` nesta etapa.
@@ -58,6 +59,8 @@ Valores sem default por segurança:
 - `region`
 - `ssh_public_key_path`
 - `admin_cidr`
+- `api_image_ref`
+- `web_image_ref`
 
 Valores conservadores com default:
 
@@ -72,6 +75,13 @@ Valores conservadores com default:
 - `load_balancer_listener_port = 80`
 - `load_balancer_backend_port = 8080`
 - `load_balancer_health_path = "/health"`
+- `nginx_image_ref = "nginxinc/nginx-unprivileged:1.27.4-alpine"`
+- `deploy_application = true`
+- `application_host_port = 8080`
+- `application_container_port = 8080`
+- `application_health_path = "/health"`
+- `application_root_dir = "/opt/edudocs"`
+- `application_start_timeout_seconds = 600`
 - `create_backup_bucket = false`
 
 ## Rede
@@ -109,18 +119,20 @@ Esses valores são outputs conhecidos somente após um apply real. O Terraform n
 
 ## Cloud-init
 
-O template `../cloud-init/app-server.yaml.tftpl` prepara a VM de forma idempotente:
+O template `../cloud-init/app-server.yaml.tftpl` prepara a VM de forma idempotente e usa templates auxiliares em `infrastructure/cloud-init`:
 
 - Instala Docker Engine e Docker Compose plugin via repositório apt oficial.
 - Habilita e inicia Docker.
-- Adiciona o usuário `ubuntu` ao grupo `docker`.
-- Cria `/opt/edudocs`, `/opt/edudocs/config`, `/opt/edudocs/data`, `/opt/edudocs/data/index` e `/opt/edudocs/logs`.
+- Escreve `/opt/edudocs/docker-compose.yml`, `/opt/edudocs/nginx.conf` e `/opt/edudocs/runtime.env`.
+- Mantém `runtime.env` com permissão `0600` e apenas valores não secretos: refs de imagem, `FakeProvider` e porta Nginx.
+- Cria a unidade `edudocs-compose.service`, executa `docker compose config`, faz pull anônimo das imagens por digest e inicia a stack.
+- Publica somente o Nginx local em `8080`; API `8000` e web `3000` ficam na rede interna do Compose.
+- Aguarda `http://127.0.0.1:8080/health`.
+- Escreve `/var/lib/edudocs/application-ready`.
 - Escreve `/var/lib/edudocs/cloud-init-complete`.
 - Registra logs em `/var/log/edudocs-cloud-init.log`.
 
-O template não clona GitHub, não baixa imagens, não cria `.env`, não injeta chave Groq, não inicia Docker Compose e não configura HTTPS.
-
-Uma etapa posterior usará as imagens ARM64 publicadas no GHCR por digest, criará a configuração segura fora do Git e automatizará o bootstrap da aplicação.
+Os templates não fazem `docker login`, não clonam GitHub, não criam `.env`, não injetam chave Groq, não usam `latest`, não usam provisioners Terraform e não configuram HTTPS.
 
 ## Bucket Opcional
 

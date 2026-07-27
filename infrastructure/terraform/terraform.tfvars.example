@@ -14,6 +14,11 @@ admin_cidr = "203.0.113.10/32"
 # Informe a chave publica SSH local que sera copiada para a VM.
 ssh_public_key_path = "~/.ssh/id_ed25519.pub"
 
+# Imagens publicas GHCR por digest imutavel. Substitua pelos digests publicados e
+# validados no manifesto de release antes do primeiro plan real.
+api_image_ref = "ghcr.io/brodyandre/edudocs-ai-api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+web_image_ref = "ghcr.io/brodyandre/edudocs-ai-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
 # Opcional: fixe uma imagem ARM Ubuntu validada manualmente antes do primeiro plan real.
 # image_ocid = "ocid1.image.oc1..substitua"
 

@@ -52,6 +52,7 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+deploy/oci/runtime.env
 
 # Dados gerados, indices e modelos
 corpus/index/*

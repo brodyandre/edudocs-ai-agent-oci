@@ -7,7 +7,27 @@ terraform {
 }
 
 locals {
-  hostname_label = replace(var.name_prefix, "-", "")
+  hostname_label       = replace(var.name_prefix, "-", "")
+  cloud_init_templates = dirname(var.cloud_init_template_path)
+  application_root_dir = trimsuffix(var.application_root_dir, "/")
+  compose_content = templatefile("${local.cloud_init_templates}/docker-compose.prod.yaml.tftpl", {
+    nginx_image_ref            = var.nginx_image_ref
+    application_container_port = var.application_container_port
+    application_health_path    = var.application_health_path
+  })
+  nginx_content = templatefile("${local.cloud_init_templates}/nginx.conf.tftpl", {
+    application_container_port = var.application_container_port
+    application_health_path    = var.application_health_path
+  })
+  runtime_env_content = templatefile("${local.cloud_init_templates}/runtime.env.tftpl", {
+    api_image_ref         = var.api_image_ref
+    web_image_ref         = var.web_image_ref
+    application_host_port = var.application_host_port
+  })
+  systemd_content = templatefile("${local.cloud_init_templates}/edudocs-compose.service.tftpl", {
+    application_root_dir              = local.application_root_dir
+    application_start_timeout_seconds = var.application_start_timeout_seconds
+  })
 }
 
 resource "oci_core_instance" "app" {
@@ -39,7 +59,17 @@ resource "oci_core_instance" "app" {
   metadata = {
     ssh_authorized_keys = file(pathexpand(var.ssh_public_key_path))
     user_data = base64encode(templatefile(var.cloud_init_template_path, {
-      project_name = var.name_prefix
+      project_name                      = var.name_prefix
+      admin_cidr                        = var.admin_cidr
+      public_subnet_cidr                = var.public_subnet_cidr
+      application_root_dir              = local.application_root_dir
+      application_host_port             = var.application_host_port
+      application_health_path           = var.application_health_path
+      application_start_timeout_seconds = var.application_start_timeout_seconds
+      compose_content                   = local.compose_content
+      nginx_content                     = local.nginx_content
+      runtime_env_content               = local.runtime_env_content
+      systemd_content                   = local.systemd_content
     }))
   }
 
@@ -67,6 +97,31 @@ resource "oci_core_instance" "app" {
     precondition {
       condition     = var.admin_cidr != "0.0.0.0/0"
       error_message = "admin_cidr nao pode ser 0.0.0.0/0."
+    }
+
+    precondition {
+      condition     = var.deploy_application == true
+      error_message = "deploy_application deve permanecer true nesta entrega."
+    }
+
+    precondition {
+      condition     = can(regex("^ghcr\\.io/brodyandre/edudocs-ai-api@sha256:[0-9a-f]{64}$", var.api_image_ref))
+      error_message = "api_image_ref deve ser uma referencia GHCR imutavel por digest."
+    }
+
+    precondition {
+      condition     = can(regex("^ghcr\\.io/brodyandre/edudocs-ai-web@sha256:[0-9a-f]{64}$", var.web_image_ref))
+      error_message = "web_image_ref deve ser uma referencia GHCR imutavel por digest."
+    }
+
+    precondition {
+      condition     = var.application_host_port == 8080 && var.application_container_port == 8080
+      error_message = "A aplicacao deve expor somente a porta 8080 para o backend do Load Balancer."
+    }
+
+    precondition {
+      condition     = var.application_health_path == "/health"
+      error_message = "application_health_path deve permanecer /health."
     }
   }
 }

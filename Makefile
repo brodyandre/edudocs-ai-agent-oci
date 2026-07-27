@@ -1,4 +1,4 @@
-.PHONY: setup quality corpus index lint test evaluate web-build compose-check terraform-fmt terraform-init terraform-validate terraform-policy terraform-check container-release-check container-release-manifest-check images-inspect images-smoke build up down restart ps logs smoke docker-ci project-audit readme-evidence pre-terraform ci clean
+.PHONY: setup quality corpus index lint test evaluate web-build compose-check terraform-fmt terraform-init terraform-validate terraform-policy runtime-bootstrap-check terraform-check container-release-check container-release-manifest-check images-inspect images-smoke build up down restart ps logs smoke docker-ci project-audit readme-evidence pre-terraform ci clean
 
 PYTHON ?= python3
 VENV_PYTHON ?= .venv/bin/python
@@ -57,7 +57,10 @@ terraform-validate:
 terraform-policy:
 	$(PYTHON) scripts/check_terraform_policy.py
 
-terraform-check: terraform-fmt terraform-init terraform-validate terraform-policy
+runtime-bootstrap-check:
+	$(PYTHON) scripts/check_runtime_bootstrap.py
+
+terraform-check: terraform-fmt terraform-init terraform-validate terraform-policy runtime-bootstrap-check
 
 container-release-check:
 	$(PYTHON) scripts/check_container_publish_policy.py
