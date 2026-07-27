@@ -40,6 +40,7 @@ O projeto usa uma aplicação educacional fictícia, a EduDocs Academy, para dem
 - [Qualidade e avaliação](#qualidade-e-avaliacao)
 - [GitHub Actions](#github-actions)
 - [Docker e execução integrada](#docker-e-execucao-integrada)
+- [Release de containers](#release-de-containers)
 - [Execução local](#execucao-local)
 - [Perguntas de exemplo](#perguntas-de-exemplo)
 - [Segurança](#seguranca)
@@ -217,7 +218,7 @@ No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única
 | Documentos | PyMuPDF `==1.28.0`, NumPy `>=1.26,<2.0`, scikit-learn `>=1.4,<1.7` |
 | Testes | pytest `>=8.0,<9`, Ruff `>=0.8,<0.14`, Vitest `^3.2.4` |
 | Containers | Docker Compose, Nginx unprivileged, imagens locais para API e web |
-| CI/CD | Quality, API CI, Web CI e Containers CI no GitHub Actions |
+| CI/CD | Quality, API CI, Web CI, Containers CI e Publish Images manual no GitHub Actions |
 | Infraestrutura OCI | Terraform `>=1.15,<1.16`, provider `oracle/oci ~> 8.23`, Compute ARM64 A1 Flex, Flexible Load Balancer 10 Mbps, cloud-init e política estática |
 
 [Voltar ao índice](#índice)
@@ -255,6 +256,7 @@ O repositório usa quatro workflows reais:
 - **API CI**: Ruff, pytest e avaliação RAG.
 - **Web CI**: lint, typecheck, testes, build e auditoria npm.
 - **Containers CI**: Compose, Nginx, smoke integrado e builds amd64/arm64.
+- **Publish Images**: publicação manual GHCR para API/Web multiarch, com preflight completo, pull anônimo, manifesto e smoke por digest.
 
 <!-- EVIDENCE:ACTIONS:START -->
 ![Workflows do GitHub Actions apos a validacao do projeto.](docs/evidence/github-actions.png)
@@ -275,6 +277,32 @@ Os containers usam controles como `read_only`, `tmpfs`, `cap_drop: ALL` e `no-ne
 
 _Validacao integrada da stack Docker local._
 <!-- EVIDENCE:DOCKER:END -->
+
+[Voltar ao índice](#índice)
+
+## Release de containers
+
+O repositório possui workflow manual para publicar imagens multi-arquitetura no GitHub Container Registry:
+
+- `ghcr.io/brodyandre/edudocs-ai-api`
+- `ghcr.io/brodyandre/edudocs-ai-web`
+
+As plataformas obrigatórias são `linux/amd64` e `linux/arm64`. A implantação futura deve usar referências imutáveis por digest, por exemplo `ghcr.io/brodyandre/edudocs-ai-api@sha256:<digest>`, nunca apenas `main` ou tag mutável.
+
+O Compose de produção exige:
+
+```bash
+API_IMAGE_REF=ghcr.io/brodyandre/edudocs-ai-api@sha256:SUBSTITUA \
+WEB_IMAGE_REF=ghcr.io/brodyandre/edudocs-ai-web@sha256:SUBSTITUA \
+docker compose -f docker-compose.prod.yml up -d
+```
+
+O primeiro deploy público pode usar `FakeProvider` para validar infraestrutura, containers, Load Balancer, health checks, interface e integração sem gravar segredo no Terraform state.
+
+Documentação relacionada:
+
+- [Release de containers](docs/container-release.md)
+- [Deployment OCI](docs/deployment-oci.md)
 
 [Voltar ao índice](#índice)
 
@@ -349,6 +377,7 @@ Limitações do MVP: sem autenticação, sem rate limit persistente, sem histór
 │   ├── api/        # FastAPI, ingestão, recuperação, LangGraph e avaliação
 │   └── web/        # Next.js, componentes, estilos e testes de interface
 ├── corpus/         # Manifesto, PDFs fictícios, fontes e dataset de avaliação
+├── deploy/         # Exemplos de runtime para deploy futuro
 ├── docs/           # Documentação técnica, auditorias e guia de screenshots
 ├── infrastructure/ # Nginx local, cloud-init e Terraform OCI
 ├── scripts/        # Validadores, auditoria, smoke test e sincronização do README
@@ -373,6 +402,9 @@ Concluído:
 - Docker Compose com Nginx.
 - CI para qualidade, API, web e containers.
 - Builds de containers para amd64 e ARM64 no CI.
+- Workflow manual de publicação GHCR para imagens API/Web multiarch.
+- Compose de produção usando referências imutáveis por digest.
+- Scripts e políticas para manifesto de release, pull anônimo e smoke pós-publicação.
 - Terraform OCI com módulos de rede, compute, load balancer e object storage opcional.
 - OCI Flexible Load Balancer declarado com backend set, backend privado, listener HTTP 80 e health check `/health`.
 - Dois NSGs separados: Load Balancer público em 80 e aplicação privada em 8080 a partir do NSG do Load Balancer.
@@ -385,7 +417,7 @@ Próximo:
 - Confirmar credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state.
 - Executar primeiro `terraform plan` real somente após aprovação.
 - Provisionar OCI somente após revisão do plano.
-- Publicar imagens ARM64 e iniciar a aplicação na VM.
+- Executar publicação manual GHCR, obter digests e iniciar a aplicação na VM.
 - Obter IP real do Load Balancer após apply.
 - Validar Groq real fora do ambiente de teste.
 - Configurar domínio e HTTPS.
@@ -412,6 +444,7 @@ Documentação relacionada:
 - [Terraform OCI](infrastructure/terraform/README.md)
 - [Deployment OCI](docs/deployment-oci.md)
 - [Controles de custo](docs/cost-controls.md)
+- [Release de containers](docs/container-release.md)
 
 <!-- EVIDENCE:OCI_APP:START -->
 > **Captura reservada para etapa futura:** `docs/evidence/oci-application.png`.
@@ -437,6 +470,7 @@ Documentação relacionada:
 | Interface gráfica | Concluída para uso local |
 | Terraform OCI | Concluído e validado sem credenciais reais |
 | Load Balancer OCI | Declarado em Terraform; endpoint real pendente |
+| Imagens GHCR | Workflow e política preparados; publicação manual por digest |
 | Deploy OCI | Pendente |
 | Screenshots locais | Concluídos e inseridos contextualmente no README |
 | Evidência OCI | Reservada para etapa futura |
@@ -462,11 +496,12 @@ Documentação relacionada:
 2. Confirmar elegibilidade do OCI Flexible Load Balancer 10 Mbps na tenancy.
 3. Executar e revisar o primeiro `terraform plan` real.
 4. Provisionar OCI somente após aprovação do plano.
-5. Publicar a aplicação em Compute ARM64.
-6. Validar `http://<load_balancer_public_ip>` e depois configurar DNS.
-7. Configurar domínio, HTTPS e variáveis seguras.
-8. Produzir capturas reais de aplicação e infraestrutura.
-9. Reavaliar recuperação, cobertura factual e citações multi-documento.
+5. Publicar imagens API/Web multiarch no GHCR e validar pull anônimo.
+6. Publicar a aplicação em Compute ARM64 usando digests imutáveis.
+7. Validar `http://<load_balancer_public_ip>` e depois configurar DNS.
+8. Configurar domínio, HTTPS e variáveis seguras.
+9. Produzir capturas reais de aplicação e infraestrutura.
+10. Reavaliar recuperação, cobertura factual e citações multi-documento.
 
 [Voltar ao índice](#índice)
 

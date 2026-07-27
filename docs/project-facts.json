@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-23T18:35:39Z",
+  "generated_at": "2026-07-27T15:12:37Z",
   "repository": {
     "name": "edudocs-ai-agent-oci",
     "url": "https://github.com/brodyandre/edudocs-ai-agent-oci"
   },
   "git": {
     "branch": "main",
-    "head": "a31c374992de413ca04dbb2f5a603c2d5f1a8f79",
-    "last_commit_message": "docs: atualiza o estado das evidências no README",
-    "last_commit_date": "2026-07-23T15:13:07-03:00",
+    "head": "03f0a59c5b9d25f4e3672bb129e1981623b7f504",
+    "last_commit_message": "feat(infra): adiciona load balancer Always Free à arquitetura OCI",
+    "last_commit_date": "2026-07-23T17:14:29-03:00",
     "sync_main_origin": "0\t0",
     "workspace_clean": true,
     "status_short": "",
@@ -90,7 +90,7 @@
     "pytest": {
       "ok": true,
       "returncode": 0,
-      "tests": 123
+      "tests": 152
     }
   },
   "corpus": {
@@ -284,6 +284,28 @@
       "path": "docs/evidence/oci-instance-running.png",
       "status": "reservado para etapa futura"
     }
+  },
+  "container_release": {
+    "workflow_present": true,
+    "workflow_manual_only": true,
+    "packages_write_only_in_publish": true,
+    "policy_ok": true,
+    "api_image": "ghcr.io/brodyandre/edudocs-ai-api",
+    "web_image": "ghcr.io/brodyandre/edudocs-ai-web",
+    "platforms": [
+      "linux/amd64",
+      "linux/arm64"
+    ],
+    "immutable_refs_required": true,
+    "runtime_env_example": true,
+    "release_manifest_script": true,
+    "release_manifest_validator": true,
+    "api_published": false,
+    "web_published": false,
+    "digests_available_in_repo": false,
+    "packages_public_verified": false,
+    "anonymous_pull_verified": false,
+    "published_images_smoke_ok": false
   },
   "terraform_readiness": {
     "terraform_installed": true,

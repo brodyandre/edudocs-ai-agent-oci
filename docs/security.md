@@ -71,6 +71,8 @@ O achado histórico em `next -> postcss` foi removido com override global para `
 
 As imagens planejadas devem usar bases oficiais ou confiáveis, camadas enxutas e versões compatíveis com ARM64. Segredos não devem ser copiados para imagens.
 
+As imagens GHCR publicadas são artefatos públicos. Por isso, elas não podem conter `.env`, tokens, chaves OCI/SSH, tfvars reais, state, planos Terraform, pasta `.git`, caches do host ou `GROQ_API_KEY`. A VM OCI fará pull anônimo usando referências por digest.
+
 ## 16. Usuário não root
 
 Containers de aplicação devem executar com usuário não root sempre que possível. Diretórios de escrita devem ter permissões específicas para o processo da aplicação.
@@ -94,6 +96,8 @@ Dependências, imagens e pacotes do sistema devem receber atualizações compat�
 ## 21. CI e segredos
 
 Os workflows de CI usam `permissions: contents: read`, providers `fake` e não recebem `GROQ_API_KEY`. A verificação `scripts/check_repository_hygiene.py` bloqueia arquivos sensíveis versionados, state/plans Terraform, chaves privadas, tokens comuns e valores reais de `GROQ_API_KEY` sem imprimir o segredo detectado.
+
+Somente `publish-images.yml` usa `packages: write`, e apenas em execução manual sobre `main`. O login no GHCR usa `secrets.GITHUB_TOKEN` pela action oficial de login; nenhum PAT é necessário.
 
 ## 22. Limitações do MVP
 

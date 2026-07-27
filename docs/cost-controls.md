@@ -25,6 +25,10 @@ O Terraform foi desenhado para mirar um perfil Always Free conservador, sem prom
 - Bucket de backup desabilitado por padrão.
 - Bucket opcional sempre privado.
 - Sem lifecycle destrutivo automático em Object Storage.
+- Publicação no GHCR não altera a configuração de custo OCI.
+- Sem registry privado que exija credencial na VM.
+- Sem artefato adicional obrigatório na OCI.
+- Sem Object Storage obrigatório para a aplicação.
 
 ## Pontos Que Exigem Confirmação Manual
 
@@ -37,6 +41,7 @@ Antes de qualquer `plan` real:
 - Verifique se o boot volume proposto cabe no orçamento.
 - Verifique se o bucket opcional é necessário.
 - Revise tags e ownership dos recursos.
+- Verifique se as imagens GHCR estão públicas antes de depender de pull anônimo na VM.
 
 ## Política No Repositório
 

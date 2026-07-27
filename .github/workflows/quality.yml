@@ -66,6 +66,12 @@ jobs:
           docker compose config --format json > "$RUNNER_TEMP/compose-config.json"
           python3 scripts/validate_compose_policy.py "$RUNNER_TEMP/compose-config.json" infrastructure/nginx/nginx.conf
 
+      - name: Validate production Docker Compose syntax
+        run: |
+          API_IMAGE_REF=ghcr.io/brodyandre/edudocs-ai-api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+          WEB_IMAGE_REF=ghcr.io/brodyandre/edudocs-ai-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+          docker compose -f docker-compose.prod.yml config
+
       - name: Validate Terraform formatting
         run: terraform -chdir=infrastructure/terraform fmt -recursive -check
 
@@ -80,3 +86,12 @@ jobs:
 
       - name: Test Terraform policy
         run: python -m pytest apps/api/tests/test_terraform_policy.py
+
+      - name: Validate container publish policy
+        run: python3 scripts/check_container_publish_policy.py
+
+      - name: Test container release scripts
+        run: |
+          python -m pytest \
+            apps/api/tests/test_container_release_manifest.py \
+            apps/api/tests/test_container_publish_policy.py

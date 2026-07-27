@@ -13,7 +13,7 @@ O código define:
 - Cloud-init para preparar Docker Engine, Docker Compose plugin, diretórios em `/opt/edudocs` e marcador de conclusão.
 - Bucket privado opcional para backups, desabilitado por padrão.
 
-O código não executa deploy da aplicação, não publica imagem, não configura domínio, não emite HTTPS e não grava segredos.
+O código não executa deploy da aplicação, não publica imagem, não configura domínio, não emite HTTPS e não grava segredos. O deploy futuro consumirá imagens GHCR públicas por digest, sem credencial no Terraform ou no cloud-init.
 
 ## Pré-requisitos Antes De Um Plan Real
 
@@ -120,7 +120,7 @@ O template `../cloud-init/app-server.yaml.tftpl` prepara a VM de forma idempoten
 
 O template não clona GitHub, não baixa imagens, não cria `.env`, não injeta chave Groq, não inicia Docker Compose e não configura HTTPS.
 
-Uma etapa posterior publicará imagens ARM64, criará a configuração segura fora do Git e automatizará o bootstrap da aplicação.
+Uma etapa posterior usará as imagens ARM64 publicadas no GHCR por digest, criará a configuração segura fora do Git e automatizará o bootstrap da aplicação.
 
 ## Bucket Opcional
 

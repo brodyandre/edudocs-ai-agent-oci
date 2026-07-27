@@ -77,13 +77,17 @@ O proxy preserva `Host`, `X-Real-IP`, `X-Forwarded-*` e `X-Request-ID`, aplica l
 
 ## Compose de produção
 
-O arquivo `docker-compose.prod.yml` não faz build local. Ele espera imagens já publicadas e uma tag imutável:
+O arquivo `docker-compose.prod.yml` não faz build local. Ele espera referências completas por digest:
 
 ```bash
-IMAGE_TAG=2026-07-22 API_IMAGE=registry.example/edudocs-api WEB_IMAGE=registry.example/edudocs-web docker compose -f docker-compose.prod.yml up -d
+API_IMAGE_REF=ghcr.io/brodyandre/edudocs-ai-api@sha256:SUBSTITUA \
+WEB_IMAGE_REF=ghcr.io/brodyandre/edudocs-ai-web@sha256:SUBSTITUA \
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-Use `NGINX_PORT` para alterar a porta externa do Nginx. Não coloque chaves em arquivos versionados; injete segredos somente no ambiente de execução.
+Use `NGINX_PORT` para alterar a porta externa do Nginx. Não use `latest` nem tag mutável em produção. Não coloque chaves em arquivos versionados; injete segredos somente no ambiente de execução.
+
+Para OCI, use `deploy/oci/runtime.env.example` como modelo sem segredos.
 
 ## Smoke test
 

@@ -1,0 +1,272 @@
+name: Publish Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_main_alias:
+        description: "Publish the additional mutable main alias"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-images-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  EDUDOCS_LLM_PROVIDER: fake
+  EDUDOCS_EMBEDDING_PROVIDER: fake
+  API_IMAGE: ghcr.io/brodyandre/edudocs-ai-api
+  WEB_IMAGE: ghcr.io/brodyandre/edudocs-ai-web
+
+jobs:
+  publish:
+    name: Build, publish and verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard trusted main ref
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REPOSITORY}" = "brodyandre/edudocs-ai-agent-oci"
+          test "${GITHUB_REF}" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          git fetch --prune origin main
+          git merge-base --is-ancestor "${GITHUB_SHA}" origin/main
+          git diff --quiet
+          git diff --cached --quiet
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: apps/api/pyproject.toml
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install API dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "apps/api[dev]"
+
+      - name: Repository and corpus preflight
+        run: |
+          python3 scripts/check_repository_hygiene.py
+          python3 scripts/validate_corpus.py
+          python3 scripts/check_utf8.py
+
+      - name: API preflight
+        run: |
+          ruff check apps/api
+          pytest apps/api/tests
+          cd apps/api
+          python -m app.evaluation.cli run --strict \
+            --output-json "$RUNNER_TEMP/edudocs-evaluation.json" \
+            --output-markdown "$RUNNER_TEMP/edudocs-evaluation.md"
+
+      - name: Web preflight
+        run: |
+          npm --prefix apps/web ci
+          npm --prefix apps/web run lint
+          npm --prefix apps/web run typecheck
+          npm --prefix apps/web run test
+          npm --prefix apps/web run build
+
+      - name: Terraform preflight
+        run: |
+          terraform -chdir=infrastructure/terraform fmt -recursive -check
+          terraform -chdir=infrastructure/terraform init -backend=false
+          terraform -chdir=infrastructure/terraform validate
+          python3 scripts/check_terraform_policy.py
+
+      - name: Compose preflight
+        run: |
+          docker compose config
+          API_IMAGE_REF=ghcr.io/brodyandre/edudocs-ai-api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+          WEB_IMAGE_REF=ghcr.io/brodyandre/edudocs-ai-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+          docker compose -f docker-compose.prod.yml config
+
+      - name: Container publication policy
+        run: python3 scripts/check_container_publish_policy.py
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: API metadata
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.API_IMAGE }}
+          tags: |
+            type=raw,value=sha-${{ github.sha }}
+            type=raw,value=main,enable=${{ inputs.publish_main_alias }}
+          labels: |
+            org.opencontainers.image.title=EduDocs AI API
+            org.opencontainers.image.description=FastAPI RAG API for EduDocs AI
+            org.opencontainers.image.source=https://github.com/brodyandre/edudocs-ai-agent-oci
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ss[Z]'}}
+            org.opencontainers.image.version=sha-${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
+
+      - name: Web metadata
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.WEB_IMAGE }}
+          tags: |
+            type=raw,value=sha-${{ github.sha }}
+            type=raw,value=main,enable=${{ inputs.publish_main_alias }}
+          labels: |
+            org.opencontainers.image.title=EduDocs AI Web
+            org.opencontainers.image.description=Next.js interface for EduDocs AI
+            org.opencontainers.image.source=https://github.com/brodyandre/edudocs-ai-agent-oci
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ss[Z]'}}
+            org.opencontainers.image.version=sha-${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build and push API
+        id: build-api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha,scope=publish-api
+          cache-to: type=gha,mode=max,scope=publish-api
+
+      - name: Build and push Web
+        id: build-web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=gha,scope=publish-web
+          cache-to: type=gha,mode=max,scope=publish-web
+
+      - name: Generate release manifest
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/container-release"
+          CREATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          python3 scripts/generate_container_release_manifest.py \
+            --commit "${GITHUB_SHA}" \
+            --api-image "${API_IMAGE}" \
+            --api-digest "${{ steps.build-api.outputs.digest }}" \
+            --web-image "${WEB_IMAGE}" \
+            --web-digest "${{ steps.build-web.outputs.digest }}" \
+            --created-at "${CREATED_AT}" \
+            --workflow-run "${GITHUB_RUN_ID}" \
+            --repository "${GITHUB_REPOSITORY}" \
+            --output "$RUNNER_TEMP/container-release/container-release-manifest.json"
+          python3 scripts/check_container_release_manifest.py \
+            "$RUNNER_TEMP/container-release/container-release-manifest.json"
+
+      - name: Verify anonymous pull and multiarch manifests
+        run: |
+          set -euo pipefail
+          ANON_DOCKER_CONFIG="$(mktemp -d)"
+          trap 'rm -rf "$ANON_DOCKER_CONFIG"' EXIT
+          API_DIGEST="${{ steps.build-api.outputs.digest }}"
+          WEB_DIGEST="${{ steps.build-web.outputs.digest }}"
+          API_REF="${API_IMAGE}@${API_DIGEST}"
+          WEB_REF="${WEB_IMAGE}@${WEB_DIGEST}"
+          DOCKER_CONFIG="$ANON_DOCKER_CONFIG" docker buildx imagetools inspect "$API_REF" > "$RUNNER_TEMP/api-image.txt"
+          DOCKER_CONFIG="$ANON_DOCKER_CONFIG" docker buildx imagetools inspect "$WEB_REF" > "$RUNNER_TEMP/web-image.txt"
+          grep -q "linux/amd64" "$RUNNER_TEMP/api-image.txt"
+          grep -q "linux/arm64" "$RUNNER_TEMP/api-image.txt"
+          grep -q "linux/amd64" "$RUNNER_TEMP/web-image.txt"
+          grep -q "linux/arm64" "$RUNNER_TEMP/web-image.txt"
+          DOCKER_CONFIG="$ANON_DOCKER_CONFIG" docker pull --platform linux/amd64 "$API_REF"
+          DOCKER_CONFIG="$ANON_DOCKER_CONFIG" docker pull --platform linux/amd64 "$WEB_REF"
+          docker image inspect "$API_REF" --format '{{ index .Config.Labels "org.opencontainers.image.source" }} {{ index .Config.Labels "org.opencontainers.image.revision" }}' | grep -q "${GITHUB_SHA}"
+          docker image inspect "$WEB_REF" --format '{{ index .Config.Labels "org.opencontainers.image.source" }} {{ index .Config.Labels "org.opencontainers.image.revision" }}' | grep -q "${GITHUB_SHA}"
+
+      - name: Smoke published images by digest
+        run: |
+          set -euo pipefail
+          ANON_DOCKER_CONFIG="$(mktemp -d)"
+          trap 'DOCKER_CONFIG="$ANON_DOCKER_CONFIG" docker compose -f docker-compose.prod.yml down -v || true; rm -rf "$ANON_DOCKER_CONFIG"' EXIT
+          API_DIGEST="${{ steps.build-api.outputs.digest }}"
+          WEB_DIGEST="${{ steps.build-web.outputs.digest }}"
+          API_REF="${API_IMAGE}@${API_DIGEST}"
+          WEB_REF="${WEB_IMAGE}@${WEB_DIGEST}"
+          DOCKER_CONFIG="$ANON_DOCKER_CONFIG" \
+          API_IMAGE_REF="$API_REF" \
+          WEB_IMAGE_REF="$WEB_REF" \
+          EDUDOCS_LLM_PROVIDER=fake \
+          EDUDOCS_EMBEDDING_PROVIDER=fake \
+          NGINX_PORT=8080 \
+          docker compose -f docker-compose.prod.yml up -d
+          for _ in $(seq 1 60); do
+            if python3 scripts/smoke_test.py; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose -f docker-compose.prod.yml logs --tail=200
+          exit 1
+
+      - name: Create sanitized release summary
+        run: |
+          API_DIGEST="${{ steps.build-api.outputs.digest }}"
+          WEB_DIGEST="${{ steps.build-web.outputs.digest }}"
+          {
+            echo "# EduDocs container release"
+            echo
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- API: ${API_IMAGE}@${API_DIGEST}"
+            echo "- Web: ${WEB_IMAGE}@${WEB_DIGEST}"
+            echo "- Platforms: linux/amd64, linux/arm64"
+            echo "- Public entry port: 80"
+            echo "- Backend port: 8080"
+            echo "- Health path: /health"
+          } > "$RUNNER_TEMP/container-release/container-release-summary.md"
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: edudocs-container-release
+          path: |
+            ${{ runner.temp }}/container-release/container-release-manifest.json
+            ${{ runner.temp }}/container-release/container-release-summary.md
+          retention-days: 30

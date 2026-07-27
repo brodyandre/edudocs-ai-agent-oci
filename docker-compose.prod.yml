@@ -1,6 +1,6 @@
 services:
   api:
-    image: "${API_IMAGE:-ghcr.io/brodyandre/edudocs-ai-api}:${IMAGE_TAG:?Defina IMAGE_TAG com uma tag imutável}"
+    image: "${API_IMAGE_REF:?Defina API_IMAGE_REF com digest imutavel sha256}"
     environment:
       EDUDOCS_ROOT_DIR: /app
       EDUDOCS_MANIFEST_PATH: corpus/manifest.json
@@ -41,7 +41,7 @@ services:
       retries: 3
 
   web:
-    image: "${WEB_IMAGE:-ghcr.io/brodyandre/edudocs-ai-web}:${IMAGE_TAG:?Defina IMAGE_TAG com uma tag imutável}"
+    image: "${WEB_IMAGE_REF:?Defina WEB_IMAGE_REF com digest imutavel sha256}"
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"

@@ -10,10 +10,11 @@ A integração contínua valida automaticamente qualidade geral, corpus, API, av
 - `API CI`: valida dependências Python, corpus, índice fake, Ruff, Pytest e avaliação RAG estrita.
 - `Web CI`: valida dependências Node, lint, typecheck, testes, build Next.js e política npm audit.
 - `Containers CI`: valida Compose/Nginx, builds Docker `amd64`/`arm64` e smoke integrado.
+- `Publish Images`: workflow manual que publica API/Web no GHCR somente após preflight completo.
 
 ## 3. Gatilhos
 
-Todos os workflows rodam em `push` para `main`, `pull_request` para `main` e `workflow_dispatch`. Os workflows específicos usam filtros de caminhos para evitar execuções sem relação direta com API, web ou containers.
+Os workflows de CI rodam em `push` para `main`, `pull_request` para `main` e `workflow_dispatch`. `Publish Images` roda somente por `workflow_dispatch` e falha fora de `refs/heads/main`.
 
 ## 4. Jobs
 
@@ -25,7 +26,7 @@ Python usa cache de pip baseado em `apps/api/pyproject.toml`. Node usa cache npm
 
 ## 6. Permissões
 
-Todos os workflows usam `permissions: contents: read`. Não há `packages: write`, `id-token: write`, `deployments: write`, `pull-requests: write` ou `write-all`.
+Os workflows de CI usam `permissions: contents: read`. Apenas `Publish Images` usa `packages: write`, necessário para GHCR. Não há `contents: write`, `id-token: write`, `deployments: write`, `pull-requests: write` ou `write-all`.
 
 ## 7. FakeProvider
 
@@ -64,6 +65,15 @@ make docker-ci
 
 `make ci` cobre as validações principais sem publicar, acessar OCI nem fazer deploy. `make docker-ci` executa build local, Compose e smoke integrado.
 
+Para release de containers:
+
+```bash
+make container-release-check
+make container-release-manifest-check CONTAINER_RELEASE_MANIFEST=/tmp/container-release-manifest.json
+make images-inspect API_IMAGE_REF=<api-por-digest> WEB_IMAGE_REF=<web-por-digest>
+make images-smoke API_IMAGE_REF=<api-por-digest> WEB_IMAGE_REF=<web-por-digest>
+```
+
 ## 15. Como investigar falhas
 
 Leia primeiro o job e a etapa com falha. Para containers, consulte os logs do smoke exibidos somente em falha. Para npm audit, compare o relatório com a baseline aceita. Para avaliação RAG, use os relatórios temporários gerados no runner.
@@ -80,3 +90,5 @@ Terraform no CI executa apenas `fmt`, `init -backend=false`, `validate`, `script
 - Deploy.
 - Acesso à OCI.
 - Uso de Groq.
+
+Exceção controlada: `Publish Images` publica imagens GHCR em execução manual, depois de todos os preflights e sem OCI.

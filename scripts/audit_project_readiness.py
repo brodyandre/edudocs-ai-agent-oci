@@ -61,13 +61,22 @@ DELIVERY_COMMIT_MESSAGES = {
 }
 EXPECTED_DELIVERY_PATHS = {
     ".github/workflows/quality.yml",
+    ".github/workflows/publish-images.yml",
     ".gitignore",
     "README.md",
     "Makefile",
+    "docker-compose.prod.yml",
+    "deploy/",
+    "deploy/oci/runtime.env.example",
     "scripts/audit_project_readiness.py",
+    "scripts/check_container_publish_policy.py",
+    "scripts/check_container_release_manifest.py",
     "scripts/check_repository_hygiene.py",
+    "scripts/generate_container_release_manifest.py",
     "scripts/sync_readme_evidence.py",
     "scripts/check_readme.py",
+    "apps/api/tests/test_container_publish_policy.py",
+    "apps/api/tests/test_container_release_manifest.py",
     "apps/api/tests/test_project_audit.py",
     "apps/api/tests/test_readme_evidence.py",
     "apps/api/tests/test_readme_check.py",
@@ -77,9 +86,11 @@ EXPECTED_DELIVERY_PATHS = {
     "docs/architecture.md",
     "docs/ci-cd.md",
     "docs/delivery-plan.md",
+    "docs/local-development.md",
     "docs/security.md",
     "docs/deployment-oci.md",
     "docs/cost-controls.md",
+    "docs/container-release.md",
     "docs/evidence/.gitkeep",
     "infrastructure/cloud-init/app-server.yaml.tftpl",
     "infrastructure/terraform/.terraform.lock.hcl",
@@ -525,6 +536,48 @@ def collect_evidence(root: Path = ROOT) -> dict[str, Any]:
     return evidence
 
 
+def collect_container_release(root: Path = ROOT) -> dict[str, Any]:
+    workflow = root / ".github" / "workflows" / "publish-images.yml"
+    compose_prod = root / "docker-compose.prod.yml"
+    runtime_env = root / "deploy" / "oci" / "runtime.env.example"
+    policy = run_command(
+        ["python3", "scripts/check_container_publish_policy.py"], root, timeout=120
+    )
+    workflow_text = workflow.read_text(encoding="utf-8") if workflow.is_file() else ""
+    compose_text = (
+        compose_prod.read_text(encoding="utf-8") if compose_prod.is_file() else ""
+    )
+    return {
+        "workflow_present": workflow.is_file(),
+        "workflow_manual_only": "workflow_dispatch:" in workflow_text
+        and "pull_request:" not in workflow_text
+        and "pull_request_target:" not in workflow_text
+        and "schedule:" not in workflow_text,
+        "packages_write_only_in_publish": "packages: write" in workflow_text,
+        "policy_ok": policy.get("ok"),
+        "api_image": "ghcr.io/brodyandre/edudocs-ai-api",
+        "web_image": "ghcr.io/brodyandre/edudocs-ai-web",
+        "platforms": ["linux/amd64", "linux/arm64"]
+        if "linux/amd64,linux/arm64" in workflow_text
+        else [],
+        "immutable_refs_required": "API_IMAGE_REF" in compose_text
+        and "WEB_IMAGE_REF" in compose_text,
+        "runtime_env_example": runtime_env.is_file(),
+        "release_manifest_script": (
+            root / "scripts" / "generate_container_release_manifest.py"
+        ).is_file(),
+        "release_manifest_validator": (
+            root / "scripts" / "check_container_release_manifest.py"
+        ).is_file(),
+        "api_published": False,
+        "web_published": False,
+        "digests_available_in_repo": False,
+        "packages_public_verified": False,
+        "anonymous_pull_verified": False,
+        "published_images_smoke_ok": False,
+    }
+
+
 def collect_terraform_readiness(
     tools: dict[str, Any], root: Path = ROOT
 ) -> dict[str, Any]:
@@ -661,6 +714,7 @@ def collect_facts(root: Path = ROOT) -> dict[str, Any]:
         "docker": collect_docker(root),
         "github_actions": collect_github_actions(root),
         "evidence": collect_evidence(root),
+        "container_release": collect_container_release(root),
         "terraform_readiness": collect_terraform_readiness(tools, root),
         "warnings": [],
         "format_version": "1",
@@ -680,6 +734,8 @@ def collect_warnings(facts: dict[str, Any]) -> list[str]:
                 warnings.append(f"Validacao {area}/{check} falhou durante a auditoria.")
     if facts["docker"].get("smoke_test", {}).get("ok") is False:
         warnings.append("Smoke test Docker nao foi aprovado durante a auditoria.")
+    if facts.get("container_release", {}).get("policy_ok") is False:
+        warnings.append("Politica de publicacao de containers nao foi aprovada.")
     terraform = facts.get("terraform_readiness", {})
     if terraform.get("terraform_policy_ok") is False:
         warnings.append("Politica Terraform OCI nao foi aprovada durante a auditoria.")
@@ -722,6 +778,7 @@ def render_report(facts: dict[str, Any]) -> str:
     evaluation = facts["evaluation"]
     docker = facts["docker"]
     actions = facts["github_actions"]["latest"]
+    container_release = facts["container_release"]
     terraform = facts["terraform_readiness"]
     metrics_lines = "\n".join(
         f"- `{name}`: {value}" for name, value in evaluation["metrics"].items()
@@ -792,11 +849,26 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 
 {actions_lines}
 
-## 9. Evidencias visuais
+## 9. Release De Containers
+
+- Workflow de publicacao presente: `{container_release.get("workflow_present")}`.
+- Workflow somente manual: `{container_release.get("workflow_manual_only")}`.
+- Politica de publicacao: `{container_release.get("policy_ok")}`.
+- Imagem API alvo: `{container_release.get("api_image")}`.
+- Imagem Web alvo: `{container_release.get("web_image")}`.
+- Plataformas: `{container_release.get("platforms")}`.
+- Compose exige referencias imutaveis: `{container_release.get("immutable_refs_required")}`.
+- Manifesto de release: script `{container_release.get("release_manifest_script")}`, validador `{container_release.get("release_manifest_validator")}`.
+- Publicacao API registrada no repositorio: `{container_release.get("api_published")}`.
+- Publicacao Web registrada no repositorio: `{container_release.get("web_published")}`.
+- Pull anonimo comprovado no repositorio: `{container_release.get("anonymous_pull_verified")}`.
+- Smoke de imagens publicadas registrado no repositorio: `{container_release.get("published_images_smoke_ok")}`.
+
+## 10. Evidencias visuais
 
 {evidence_lines}
 
-## 10. Estado Terraform e pendencias OCI
+## 11. Estado Terraform e pendencias OCI
 
 - Terraform criado: `{terraform.get("infrastructure_created")}`.
 - Provider OCI: `{terraform.get("oci_provider")}`.
@@ -812,7 +884,7 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - Futuro: aplicar estrategia de state antes do primeiro plan real.
 - Nao aplicavel nesta entrega: `terraform plan`, `apply` ou `destroy`.
 
-## 11. Checklist de aprovacao antes do primeiro plan real
+## 12. Checklist de aprovacao antes do primeiro plan real
 
 - [ ] Credenciais OCI configuradas fora do Git.
 - [ ] Compartment validado.
@@ -821,7 +893,7 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - [ ] Estrategia de state definida.
 - [ ] Evidencias locais atualizadas quando disponiveis.
 
-## 12. Comando para reproduzir a auditoria
+## 13. Comando para reproduzir a auditoria
 
 ```bash
 python3 scripts/audit_project_readiness.py
