@@ -2,11 +2,13 @@
 
 Gerado em `2026-07-27T15:12:37Z`.
 
+> Nota histórica: esta auditoria registra o estado anterior ao primeiro plan real. O plan OCI foi executado e revisado posteriormente em 2026-07-27. Consulte `docs/oci-plan-audit.md` para o estado atual.
+
 ## 1. Resumo executivo
 
 Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose, Terraform OCI validavel e GitHub Actions registrados em fatos automatizados.
 
-Pendente: credenciais OCI, primeiro `terraform plan` real, qualquer `apply`, deploy da aplicacao, dominio, HTTPS e evidencias OCI reais.
+Pendente no momento desta auditoria historica: credenciais OCI, primeiro `terraform plan` real, qualquer `apply`, deploy da aplicacao, dominio, HTTPS e evidencias OCI reais.
 
 ## 2. Baseline Git
 
@@ -106,13 +108,12 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - Terraform fmt: `True`.
 - Terraform validate: `True`.
 - Politica Terraform: `True`.
-- Futuro: definir credenciais OCI fora do repositorio.
-- Futuro: validar compartment, home region, disponibilidade A1 e elegibilidade do Load Balancer 10/10 Mbps.
-- Futuro: definir CIDR administrativo real.
-- Futuro: aplicar estrategia de state antes do primeiro plan real.
-- Nao aplicavel nesta entrega: `terraform plan`, `apply` ou `destroy`.
+- Historico: credenciais OCI, root compartment, home region e CIDR administrativo foram validados depois desta auditoria.
+- Historico: o primeiro `terraform plan` real foi executado e aprovado por auditoria JSON depois desta auditoria.
+- Futuro: revisar disponibilidade A1, elegibilidade do Load Balancer 10/10 Mbps e estrategia de state antes de qualquer apply.
+- Nao aplicavel nesta auditoria historica: `apply` ou `destroy`.
 
-## 12. Checklist de aprovacao antes do primeiro plan real
+## 12. Checklist historico de aprovacao antes do primeiro plan real
 
 - [ ] Credenciais OCI configuradas fora do Git.
 - [ ] Compartment validado.

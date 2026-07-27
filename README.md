@@ -412,12 +412,12 @@ Concluído:
 - Dois NSGs separados: Load Balancer público em 80 e aplicação privada em 8080 a partir do NSG do Load Balancer.
 - Outputs para endpoint futuro `http://<load_balancer_public_ip>` e health URL.
 - Cloud-init com bootstrap declarativo da aplicação via systemd, Docker Compose, Nginx 8080 e imagens GHCR por digest.
+- Readiness OCI validada com perfil `EDUDOCS`, home region `sa-saopaulo-1` e root compartment da tenancy como alvo aprovado.
+- Primeiro `terraform plan` real gerado e auditado em JSON, sem `apply`.
 - Validações Terraform, política de custo e CI sem credenciais.
 
 Próximo:
 
-- Confirmar credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state.
-- Executar primeiro `terraform plan` real somente após aprovação.
 - Provisionar OCI somente após revisão do plano.
 - Usar os digests GHCR validados em `terraform.tfvars` local para iniciar a aplicação na VM durante o primeiro apply aprovado.
 - Obter IP real do Load Balancer após apply.
@@ -429,7 +429,7 @@ Próximo:
 
 ## Infraestrutura OCI
 
-A OCI possui código Terraform criado em `infrastructure/terraform`, com módulos de rede, compute, load balancer, object storage opcional e cloud-init em `infrastructure/cloud-init/app-server.yaml.tftpl`. O cloud-init renderiza Compose produtivo, `runtime.env` não secreto, Nginx 8080 e unidade systemd para iniciar API/Web por imagens GHCR imutáveis. Esta etapa valida o código e a política, mas não executa `plan`, `apply` ou `destroy`, e não afirma deploy ativo.
+A OCI possui código Terraform criado em `infrastructure/terraform`, com módulos de rede, compute, load balancer, object storage opcional e cloud-init em `infrastructure/cloud-init/app-server.yaml.tftpl`. O cloud-init renderiza Compose produtivo, `runtime.env` não secreto, Nginx 8080 e unidade systemd para iniciar API/Web por imagens GHCR imutáveis. O primeiro `terraform plan` real foi gerado e auditado em 2026-07-27, mas não houve `apply`, `destroy` ou deploy ativo.
 
 O acesso público futuro será exclusivamente pelo OCI Flexible Load Balancer:
 
@@ -439,12 +439,13 @@ Usuário -> OCI Flexible Load Balancer -> VM Ampere A1 -> Nginx -> Next.js/FastA
 
 O endpoint futuro será conhecido somente após apply real e terá o formato `http://<load_balancer_public_ip>`. Uma URL nominal exigirá DNS posteriormente.
 
-O código pode ser criado e validado sem credenciais reais. Credenciais OCI, compartment, home region, capacidade A1, elegibilidade do Flexible Load Balancer 10 Mbps, CIDR administrativo e estratégia de state devem ser confirmados antes do primeiro `terraform plan` real e antes de qualquer `apply`.
+O código pode ser criado e validado sem credenciais reais. Para o plan real auditado, foram confirmados perfil OCI `EDUDOCS`, home region `sa-saopaulo-1`, CIDR administrativo público em `/32`, chave SSH da VM e root compartment da tenancy como alvo. Capacidade A1, elegibilidade Always Free final e estratégia de state ainda devem ser revisadas imediatamente antes de qualquer `apply`.
 
 Documentação relacionada:
 
 - [Terraform OCI](infrastructure/terraform/README.md)
 - [Deployment OCI](docs/deployment-oci.md)
+- [Auditoria do plan OCI](docs/oci-plan-audit.md)
 - [Controles de custo](docs/cost-controls.md)
 - [Release de containers](docs/container-release.md)
 
@@ -470,8 +471,8 @@ Documentação relacionada:
 | Agente RAG | Concluído para o MVP local |
 | Corpus PDF | Concluído com documentos fictícios |
 | Interface gráfica | Concluída para uso local |
-| Terraform OCI | Concluído e validado sem credenciais reais |
-| Load Balancer OCI | Declarado em Terraform; endpoint real pendente |
+| Terraform OCI | Concluído, validado e com plan real auditado |
+| Load Balancer OCI | Plan real revisado; endpoint real pendente de apply |
 | Imagens GHCR | Publicadas por workflow manual e validadas por digest |
 | Deploy OCI | Pendente |
 | Screenshots locais | Concluídos e inseridos contextualmente no README |
@@ -487,17 +488,17 @@ Documentação relacionada:
 - Não há autenticação.
 - O histórico não é persistido entre sessões.
 - O provedor Groq real ainda não foi validado nesta etapa.
-- A OCI ainda não foi implantada; somente o código Terraform, incluindo Load Balancer e bootstrap declarativo da aplicação, foi criado e validado.
+- A OCI ainda não foi implantada; o código Terraform, incluindo Load Balancer e bootstrap declarativo da aplicação, foi criado, validado e revisado em plan real sem apply.
 - As métricas `fact_coverage_rate`, `complete_document_citation_rate` e `page_recall_at_k` indicam pontos reais de melhoria.
 
 [Voltar ao índice](#índice)
 
 ## Roadmap
 
-1. Confirmar credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e state.
-2. Confirmar elegibilidade do OCI Flexible Load Balancer 10 Mbps na tenancy.
-3. Executar e revisar o primeiro `terraform plan` real.
-4. Provisionar OCI somente após aprovação do plano.
+1. Revisar novamente capacidade A1, elegibilidade do OCI Flexible Load Balancer 10 Mbps e state antes de qualquer apply.
+2. Provisionar OCI somente após aprovação explícita do plano auditado.
+3. Confirmar saída do cloud-init e health pelo Load Balancer.
+4. Obter IP real do Load Balancer após apply.
 5. Manter imagens API/Web multiarch no GHCR e validar pull anônimo por digest.
 6. Publicar a aplicação em Compute ARM64 usando digests imutáveis somente após apply aprovado.
 7. Validar `http://<load_balancer_public_ip>` e depois configurar DNS.

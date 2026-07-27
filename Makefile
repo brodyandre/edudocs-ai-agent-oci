@@ -1,4 +1,4 @@
-.PHONY: setup quality corpus index lint test evaluate web-build compose-check terraform-fmt terraform-init terraform-validate terraform-policy runtime-bootstrap-check terraform-check container-release-check container-release-manifest-check images-inspect images-smoke build up down restart ps logs smoke docker-ci project-audit readme-evidence pre-terraform ci clean
+.PHONY: setup quality corpus index lint test evaluate web-build compose-check terraform-fmt terraform-init terraform-validate terraform-policy runtime-bootstrap-check terraform-check oci-readiness terraform-plan-check container-release-check container-release-manifest-check images-inspect images-smoke build up down restart ps logs smoke docker-ci project-audit readme-evidence pre-terraform ci clean
 
 PYTHON ?= python3
 VENV_PYTHON ?= .venv/bin/python
@@ -8,6 +8,8 @@ COMPOSE_CONFIG_JSON ?= /tmp/edudocs-compose-config.json
 EVALUATION_JSON ?= /tmp/edudocs-evaluation.json
 EVALUATION_MARKDOWN ?= /tmp/edudocs-evaluation.md
 CONTAINER_RELEASE_MANIFEST ?=
+OCI_PROFILE ?= EDUDOCS
+TERRAFORM_PLAN_JSON ?=
 
 setup:
 	$(PYTHON) -m venv .venv
@@ -61,6 +63,13 @@ runtime-bootstrap-check:
 	$(PYTHON) scripts/check_runtime_bootstrap.py
 
 terraform-check: terraform-fmt terraform-init terraform-validate terraform-policy runtime-bootstrap-check
+
+oci-readiness:
+	. "$$HOME/.config/edudocs/oci.env"; $(PYTHON) scripts/check_oci_readiness.py --profile $(OCI_PROFILE)
+
+terraform-plan-check:
+	test -n "$(TERRAFORM_PLAN_JSON)"
+	$(PYTHON) scripts/check_terraform_plan.py "$(TERRAFORM_PLAN_JSON)"
 
 container-release-check:
 	$(PYTHON) scripts/check_container_publish_policy.py

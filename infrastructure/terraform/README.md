@@ -1,6 +1,6 @@
 # Terraform OCI
 
-Este diretório prepara a infraestrutura OCI do EduDocs AI sem criar recursos durante a validação local ou no CI.
+Este diretório prepara a infraestrutura OCI do EduDocs AI. Validações locais e CI continuam sem criar recursos; o primeiro `terraform plan` real pode ser gerado manualmente para arquivo local e auditado sem `apply`.
 
 ## Escopo
 
@@ -13,14 +13,14 @@ O código define:
 - Cloud-init para instalar Docker, renderizar `docker-compose.yml`, `runtime.env`, Nginx, unidade systemd e aguardar o health check da aplicação.
 - Bucket privado opcional para backups, desabilitado por padrão.
 
-O código declara o bootstrap da aplicação por imagens GHCR públicas e imutáveis por digest, usando `FakeProvider` por padrão e sem gravar segredos no Terraform, no cloud-init ou no user data. A validação local e o CI não criam recursos, não executam `terraform plan` real, não fazem `apply`, não configuram domínio e não emitem HTTPS.
+O código declara o bootstrap da aplicação por imagens GHCR públicas e imutáveis por digest, usando `FakeProvider` por padrão e sem gravar segredos no Terraform, no cloud-init ou no user data. A validação local e o CI não criam recursos, não fazem `apply`, não configuram domínio e não emitem HTTPS.
 
-## Pré-requisitos Antes De Um Plan Real
+## Pré-requisitos Antes De Um Plan Real Ou Apply
 
 Antes do primeiro `terraform plan` real e antes de qualquer `apply`, confirme:
 
 - Credenciais OCI configuradas fora do Git, por exemplo em `~/.oci/config`.
-- Tenancy e compartment corretos.
+- Tenancy e compartment corretos. Quando não houver compartment filho ativo, o root compartment da tenancy pode ser usado se aprovado.
 - Home region escolhida para evitar criação acidental em região errada.
 - Capacidade A1 disponível na availability domain escolhida.
 - Elegibilidade do OCI Flexible Load Balancer 10 Mbps confirmada na tenancy.
@@ -46,7 +46,26 @@ python3 scripts/check_terraform_policy.py
 python3 scripts/check_runtime_bootstrap.py
 ```
 
-Não rode `terraform plan`, `terraform apply` ou `terraform destroy` nesta etapa.
+Esses comandos não exigem credenciais reais e não executam `terraform plan`.
+
+## Plan Real Auditado
+
+Para o primeiro plan real da fase 10B, foram usados arquivos locais ignorados pelo Git:
+
+- `infrastructure/terraform/terraform.tfvars`
+- `deploy/oci/runtime.env`
+
+Fluxo usado:
+
+```bash
+source "$HOME/.config/edudocs/oci.env"
+make oci-readiness
+terraform -chdir=infrastructure/terraform plan -input=false -out=/tmp/edudocs-oci.tfplan
+terraform -chdir=infrastructure/terraform show -json /tmp/edudocs-oci.tfplan > /tmp/edudocs-oci.tfplan.json
+make terraform-plan-check TERRAFORM_PLAN_JSON=/tmp/edudocs-oci.tfplan.json
+```
+
+O plan foi auditado sem `apply` e sem versionar tfvars, state ou plan. Consulte [Auditoria do plan OCI](../../docs/oci-plan-audit.md).
 
 ## Variáveis
 

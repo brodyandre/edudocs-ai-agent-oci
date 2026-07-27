@@ -9,12 +9,12 @@ variable "tenancy_ocid" {
 }
 
 variable "compartment_ocid" {
-  description = "OCID do compartment onde a infraestrutura sera preparada."
+  description = "OCID do compartment onde a infraestrutura sera preparada. Pode ser o OCID da tenancy quando o root compartment for o alvo aprovado."
   type        = string
 
   validation {
-    condition     = can(regex("^ocid1\\.compartment\\.oc1\\.", var.compartment_ocid))
-    error_message = "compartment_ocid deve parecer um OCID de compartment OCI."
+    condition     = can(regex("^ocid1\\.(compartment|tenancy)\\.oc1\\.", var.compartment_ocid))
+    error_message = "compartment_ocid deve parecer um OCID de compartment OCI ou tenancy OCI quando o root compartment for aprovado."
   }
 }
 

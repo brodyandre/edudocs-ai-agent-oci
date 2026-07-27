@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-27T15:12:37Z",
+  "generated_at": "2026-07-27T16:57:00Z",
   "repository": {
     "name": "edudocs-ai-agent-oci",
     "url": "https://github.com/brodyandre/edudocs-ai-agent-oci"
   },
   "git": {
     "branch": "main",
-    "head": "03f0a59c5b9d25f4e3672bb129e1981623b7f504",
-    "last_commit_message": "feat(infra): adiciona load balancer Always Free à arquitetura OCI",
-    "last_commit_date": "2026-07-23T17:14:29-03:00",
+    "head": "0924a6e59713b208cd387ff06a199c42af5fa6bc",
+    "last_commit_message": "feat(deploy): automatiza o bootstrap da aplicação na OCI",
+    "last_commit_date": "2026-07-27T13:47:31-03:00",
     "sync_main_origin": "0\t0",
     "workspace_clean": true,
     "status_short": "",
@@ -90,7 +90,7 @@
     "pytest": {
       "ok": true,
       "returncode": 0,
-      "tests": 152
+      "tests": 159
     }
   },
   "corpus": {
@@ -300,12 +300,12 @@
     "runtime_env_example": true,
     "release_manifest_script": true,
     "release_manifest_validator": true,
-    "api_published": false,
-    "web_published": false,
+    "api_published": true,
+    "web_published": true,
     "digests_available_in_repo": false,
-    "packages_public_verified": false,
-    "anonymous_pull_verified": false,
-    "published_images_smoke_ok": false
+    "packages_public_verified": true,
+    "anonymous_pull_verified": true,
+    "published_images_smoke_ok": true
   },
   "terraform_readiness": {
     "terraform_installed": true,
@@ -335,15 +335,16 @@
     "terraform_fmt_ok": true,
     "terraform_validate_ok": true,
     "terraform_policy_ok": true,
-    "oci_credentials_verified": false,
-    "compartment_verified": false,
-    "home_region_verified": false,
+    "oci_credentials_verified": true,
+    "compartment_verified": true,
+    "home_region_verified": true,
     "a1_capacity_verified": false,
-    "admin_cidr_defined": false,
+    "admin_cidr_defined": true,
     "state_strategy_applied": false,
-    "terraform_plan_executed": false,
+    "terraform_plan_executed": true,
     "terraform_apply_executed": false,
-    "prompt_09_pending": false
+    "prompt_09_pending": false,
+    "plan_audit": "docs/oci-plan-audit.md"
   },
   "warnings": [],
   "format_version": "1"

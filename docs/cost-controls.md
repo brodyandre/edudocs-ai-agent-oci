@@ -32,7 +32,7 @@ O Terraform foi desenhado para mirar um perfil Always Free conservador, sem prom
 
 ## Pontos Que Exigem Confirmação Manual
 
-Antes de qualquer `plan` real:
+Antes de qualquer `apply`:
 
 - Verifique se a home region é a região pretendida.
 - Verifique se a capacidade A1 está disponível.
@@ -63,5 +63,7 @@ O script `scripts/check_terraform_policy.py` bloqueia padrões de risco como:
 - Versionamento de tfvars reais, state ou planos.
 
 ## Estado E Planos
+
+O primeiro `terraform plan` real foi salvo fora do Git e auditado por `scripts/check_terraform_plan.py`. O plan propõe somente creates permitidos para VCN, subnet, NSGs, uma VM A1 Flex, um Flexible Load Balancer 10/10 Mbps e componentes associados. Ele não executa `apply`, não cria recursos e não comprova disponibilidade final de Free Tier.
 
 Arquivos `terraform.tfvars`, `*.tfstate`, `*.tfplan` e `tfplan` não devem ser versionados. O arquivo `.terraform.lock.hcl` deve ser versionado para fixar o provedor validado.
