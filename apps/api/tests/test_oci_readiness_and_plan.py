@@ -230,3 +230,49 @@ def test_readiness_rejects_missing_duplicate_or_inactive_compartment() -> None:
 
     assert "target-compartment-not-active" in inactive_kinds
     assert "target-compartment-count" in duplicate_kinds
+
+
+def test_readiness_rejects_existing_a1_or_load_balancer() -> None:
+    readiness = load_script("check_oci_readiness.py")
+
+    findings, summary = readiness.validate_empty_workload_resources(
+        [
+            {
+                "shape": "VM.Standard.A1.Flex",
+                "lifecycle-state": "RUNNING",
+            },
+            {
+                "shape": "VM.Standard.E2.1.Micro",
+                "lifecycle-state": "RUNNING",
+            },
+            {
+                "shape": "VM.Standard.A1.Flex",
+                "lifecycle-state": "TERMINATED",
+            },
+        ],
+        [
+            {
+                "lifecycle-state": "ACTIVE",
+            },
+            {
+                "lifecycle-state": "DELETED",
+            },
+        ],
+    )
+
+    assert {finding.kind for finding in findings} == {
+        "existing-a1-flex-instance",
+        "existing-load-balancer",
+    }
+    assert summary["existing_a1_flex_instances"] == 1
+    assert summary["existing_load_balancers"] == 1
+
+
+def test_readiness_accepts_empty_workload_resources() -> None:
+    readiness = load_script("check_oci_readiness.py")
+
+    findings, summary = readiness.validate_empty_workload_resources([], [])
+
+    assert findings == []
+    assert summary["existing_a1_flex_instances"] == 0
+    assert summary["existing_load_balancers"] == 0

@@ -17,6 +17,7 @@ Concluído:
 - Validação por `terraform fmt`, `terraform init -backend=false`, `terraform validate`, política local e `scripts/check_runtime_bootstrap.py`.
 - Readiness OCI ajustada para exigir o compartment filho `edudocs-ai-prod` ativo antes do plan do workload.
 - Novo `terraform plan` real do workload gerado, salvo fora do Git e auditado por `scripts/check_terraform_plan.py`.
+- Backend local explícito preparado para o workload, com state principal externo e wrapper `scripts/terraform_workload.sh`.
 - CI sem credenciais e sem `plan/apply/destroy`.
 - Compartment `edudocs-ai-prod` validado como `ACTIVE`.
 
@@ -24,7 +25,7 @@ Pendente:
 
 - Confirmação final de capacidade A1 antes de qualquer apply do workload.
 - Confirmação final de elegibilidade do Flexible Load Balancer 10 Mbps na tenancy antes de qualquer apply do workload.
-- Estratégia de state aprovada para operação real do workload.
+- Inicialização real do state externo do workload via wrapper, depois do commit preparatório e CI verde.
 - Qualquer `terraform apply` do workload principal.
 - IP real do Load Balancer, Groq real, domínio, HTTPS e screenshots OCI.
 
@@ -34,16 +35,17 @@ Pendente:
 2. Confirmar que as imagens GHCR estão públicas e aceitam pull anônimo.
 3. Manter `terraform.tfvars` local fora do Git com profile `EDUDOCS`, CIDR administrativo em `/32`, chave SSH, digests GHCR e OCID do compartment filho.
 4. Rodar `make oci-readiness`.
-5. Rodar `make terraform-check`.
-6. Gerar `terraform plan` real do workload para arquivo local em `/tmp`.
-7. Gerar JSON do plan com `terraform show -json`.
-8. Auditar com `make terraform-plan-check TERRAFORM_PLAN_JSON=/tmp/edudocs-oci.tfplan.json TERRAFORM_TFVARS=infrastructure/terraform/terraform.tfvars`.
-9. Revisar novamente capacidade A1, Free Tier, state e plano salvo.
-10. Somente após revisão e aprovação humana, considerar `terraform apply` do workload em etapa futura.
-11. Nunca usar `-auto-approve`.
-12. Durante o apply aprovado do workload, o cloud-init instala Docker, faz pull anônimo dos digests, inicia `edudocs-compose.service` e aguarda `/health`.
-13. Validar `/health` pelo Load Balancer.
-14. Abrir `http://<IP-PUBLICO-DO-LOAD-BALANCER>`.
+5. Rodar `make workload-pre-apply-check`.
+6. Rodar `make terraform-check`.
+7. Gerar `terraform plan` real do workload para arquivo local em `/tmp` usando `scripts/terraform_workload.sh`.
+8. Gerar JSON do plan com `scripts/terraform_workload.sh show-json`.
+9. Auditar com `make terraform-plan-check TERRAFORM_PLAN_JSON=/tmp/edudocs-oci.tfplan.json TERRAFORM_TFVARS=infrastructure/terraform/terraform.tfvars`.
+10. Revisar novamente capacidade A1, Free Tier, state e plano salvo.
+11. Somente após revisão e aprovação humana literal, considerar `scripts/terraform_workload.sh apply-saved-plan`.
+12. Nunca usar `-auto-approve`.
+13. Durante o apply aprovado do workload, o cloud-init instala Docker, faz pull anônimo dos digests, inicia `edudocs-compose.service` e aguarda `/health`.
+14. Validar `/health` pelo Load Balancer.
+15. Abrir `http://<IP-PUBLICO-DO-LOAD-BALANCER>`.
 
 ## Preparação Da Aplicação
 
@@ -93,4 +95,4 @@ terraform apply -auto-approve
 terraform destroy -auto-approve
 ```
 
-`terraform plan` é permitido somente para arquivo local, com revisão e auditoria JSON. Nesta entrega, o único `apply` permitido é o do plan salvo da pilha bootstrap do compartment; `apply` do workload principal e `destroy` não fazem parte desta etapa.
+`terraform plan` é permitido somente para arquivo local, com revisão e auditoria JSON. O apply do workload principal deve usar `scripts/terraform_workload.sh apply-saved-plan` e depende de confirmação humana literal descrita em [Runbook de apply do workload OCI](oci-workload-apply-runbook.md). `destroy`, `import` e mutações manuais de state não fazem parte desta etapa.

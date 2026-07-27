@@ -1,19 +1,19 @@
 # Auditoria Terraform do EduDocs AI
 
-Gerado em `2026-07-27T18:25:18Z`.
+Gerado em `2026-07-27T19:04:31Z`.
 
 ## 1. Resumo executivo
 
-Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose, Terraform OCI validavel, bootstrap de compartment dedicado e GitHub Actions registrados em fatos automatizados.
+Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose, Terraform OCI validavel, bootstrap de compartment dedicado, preparo de state externo do workload e GitHub Actions registrados em fatos automatizados.
 
-Pendente: apply do workload principal, deploy da aplicacao, endpoint publico, dominio, HTTPS e evidencias OCI reais.
+Pendente: apply controlado do workload principal, deploy da aplicacao, endpoint publico, dominio, HTTPS e evidencias OCI reais.
 
 ## 2. Baseline Git
 
 - Branch: `main`
-- HEAD: `f4ac0b1c58f16a7e6627f70c5498b9efb89dedcd`
-- Ultimo commit: `feat(infra): adiciona bootstrap do compartment OCI`
-- Data do ultimo commit: `2026-07-27T15:09:26-03:00`
+- HEAD: `579f3ae01381bb18fed3478006ba67c1b6a032d0`
+- Ultimo commit: `chore(oci): adota compartment dedicado e revisa o plano`
+- Data do ultimo commit: `2026-07-27T15:29:55-03:00`
 - Sincronismo `main...origin/main`: `0	0`
 - Workspace limpo: `True`
 - Repositorio: `https://github.com/brodyandre/edudocs-ai-agent-oci`
@@ -29,7 +29,7 @@ Pendente: apply do workload principal, deploy da aplicacao, endpoint publico, do
 ## 4. Testes
 
 - Testes Web nesta auditoria: 55.
-- Testes API nesta auditoria: 188.
+- Testes API nesta auditoria: 207.
 
 ## 5. Avaliacao RAG
 
@@ -100,6 +100,12 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 
 - Terraform criado: `True`.
 - Provider OCI: `~> 8.23.0`.
+- Backend local explicito do workload: `True`.
+- Wrapper seguro do workload presente: `True`.
+- Politica de state/apply do workload: `True`.
+- State principal externo preparado: `True`.
+- `TF_DATA_DIR` externo preparado: `True`.
+- Apply do workload exige saved plan: `True`.
 - Modulos: `{'network': True, 'compute': True, 'load_balancer': True, 'object_storage': True}`.
 - Load Balancer: `{'declared': True, 'shape': 'flexible', 'minimum_bandwidth_mbps': 10, 'maximum_bandwidth_mbps': 10, 'listener_port': 80, 'backend_port': 8080, 'health_path': '/health', 'backend_uses_private_ip': True, 'separate_nsgs': True, 'endpoint_available': False}`.
 - Cloud-init criado: `True`.
@@ -113,6 +119,7 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - Home region validada: `True`.
 - CIDR administrativo definido: `True`.
 - State externo aplicado ao bootstrap: `True`.
+- State principal do workload: preparado fora do repositorio, ainda sem apply.
 - Plan do workload executado: `True`.
 - Apply do bootstrap executado: `True`.
 - Apply do workload executado: `False`.
@@ -125,8 +132,9 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - [x] Compartment dedicado criado e validado.
 - [x] Regiao e CIDR administrativo verificados.
 - [x] Plan do workload gerado e auditado sem apply.
+- [x] Backend local explicito, wrapper e politica offline do state principal preparados.
 - [ ] Capacidade A1 e elegibilidade do Load Balancer 10/10 Mbps verificadas imediatamente antes do apply do workload.
-- [ ] Estrategia de state do workload definida.
+- [ ] State principal inicializado externamente e confirmado vazio.
 - [ ] Evidencias locais atualizadas quando disponiveis.
 
 ## 13. Comando para reproduzir a auditoria

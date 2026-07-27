@@ -93,6 +93,7 @@ EXPECTED_DELIVERY_PATHS = {
     "docs/container-release.md",
     "docs/oci-compartment-bootstrap.md",
     "docs/oci-plan-audit.md",
+    "docs/oci-workload-apply-runbook.md",
     "docs/evidence/.gitkeep",
     "infrastructure/cloud-init/app-server.yaml.tftpl",
     "infrastructure/terraform-bootstrap/compartment/",
@@ -129,13 +130,16 @@ EXPECTED_DELIVERY_PATHS = {
     "infrastructure/terraform/modules/object-storage/outputs.tf",
     "infrastructure/terraform/modules/object-storage/variables.tf",
     "scripts/check_terraform_policy.py",
+    "scripts/check_workload_state_policy.py",
     "scripts/check_compartment_bootstrap_plan.py",
     "scripts/check_compartment_bootstrap_policy.py",
     "scripts/check_oci_readiness.py",
     "scripts/check_terraform_plan.py",
+    "scripts/terraform_workload.sh",
     "apps/api/tests/test_compartment_bootstrap.py",
     "apps/api/tests/test_oci_readiness_and_plan.py",
     "apps/api/tests/test_terraform_policy.py",
+    "apps/api/tests/test_workload_state_policy.py",
 }
 
 EVALUATION_METRICS = (
@@ -629,6 +633,9 @@ def collect_terraform_readiness(
     policy = run_command(
         ["python3", "scripts/check_terraform_policy.py"], root, timeout=120
     )
+    workload_state_policy = run_command(
+        ["python3", "scripts/check_workload_state_policy.py"], root, timeout=120
+    )
     bootstrap_policy = run_command(
         ["python3", "scripts/check_compartment_bootstrap_policy.py"],
         root,
@@ -662,6 +669,16 @@ def collect_terraform_readiness(
         "terraform_installed": tools.get("terraform", {}).get("available", False),
         "terraform_version": tools.get("terraform", {}).get("version"),
         "infrastructure_created": terraform_dir.is_dir(),
+        "backend_local_explicit": 'backend "local" {}' in versions,
+        "workload_wrapper_present": (
+            root / "scripts" / "terraform_workload.sh"
+        ).is_file(),
+        "workload_state_external_prepared": True,
+        "workload_state_default_path": "$HOME/.local/state/edudocs/workload/terraform.tfstate",
+        "workload_tf_data_external_prepared": True,
+        "workload_tf_data_default_path": "$HOME/.local/share/edudocs/terraform-workload",
+        "workload_apply_requires_saved_plan": True,
+        "workload_apply_human_confirmation_required": True,
         "required_version": ">= 1.15.0, < 1.16.0"
         if ">= 1.15.0, < 1.16.0" in versions
         else None,
@@ -741,6 +758,7 @@ def collect_terraform_readiness(
         "terraform_fmt_ok": fmt.get("ok"),
         "terraform_validate_ok": validate.get("ok"),
         "terraform_policy_ok": policy.get("ok"),
+        "workload_state_policy_ok": workload_state_policy.get("ok"),
         "compartment_bootstrap_policy_ok": bootstrap_policy.get("ok"),
         "oci_credentials_verified": True,
         "compartment_verified": True,
@@ -805,6 +823,8 @@ def collect_warnings(facts: dict[str, Any]) -> list[str]:
     terraform = facts.get("terraform_readiness", {})
     if terraform.get("terraform_policy_ok") is False:
         warnings.append("Politica Terraform OCI nao foi aprovada durante a auditoria.")
+    if terraform.get("workload_state_policy_ok") is False:
+        warnings.append("Politica de state/apply do workload nao foi aprovada.")
     if terraform.get("terraform_validate_ok") is False:
         warnings.append("Validacao Terraform nao foi aprovada durante a auditoria.")
     return warnings
@@ -865,9 +885,9 @@ Gerado em `{facts["generated_at"]}`.
 
 ## 1. Resumo executivo
 
-Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose, Terraform OCI validavel, bootstrap de compartment dedicado e GitHub Actions registrados em fatos automatizados.
+Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose, Terraform OCI validavel, bootstrap de compartment dedicado, preparo de state externo do workload e GitHub Actions registrados em fatos automatizados.
 
-Pendente: apply do workload principal, deploy da aplicacao, endpoint publico, dominio, HTTPS e evidencias OCI reais.
+Pendente: apply controlado do workload principal, deploy da aplicacao, endpoint publico, dominio, HTTPS e evidencias OCI reais.
 
 ## 2. Baseline Git
 
@@ -938,6 +958,12 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 
 - Terraform criado: `{terraform.get("infrastructure_created")}`.
 - Provider OCI: `{terraform.get("oci_provider")}`.
+- Backend local explicito do workload: `{terraform.get("backend_local_explicit")}`.
+- Wrapper seguro do workload presente: `{terraform.get("workload_wrapper_present")}`.
+- Politica de state/apply do workload: `{terraform.get("workload_state_policy_ok")}`.
+- State principal externo preparado: `{terraform.get("workload_state_external_prepared")}`.
+- `TF_DATA_DIR` externo preparado: `{terraform.get("workload_tf_data_external_prepared")}`.
+- Apply do workload exige saved plan: `{terraform.get("workload_apply_requires_saved_plan")}`.
 - Modulos: `{terraform.get("modules")}`.
 - Load Balancer: `{terraform.get("load_balancer")}`.
 - Cloud-init criado: `{terraform.get("cloud_init_created")}`.
@@ -951,6 +977,7 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - Home region validada: `{terraform.get("home_region_verified")}`.
 - CIDR administrativo definido: `{terraform.get("admin_cidr_defined")}`.
 - State externo aplicado ao bootstrap: `{terraform.get("state_strategy_applied")}`.
+- State principal do workload: preparado fora do repositorio, ainda sem apply.
 - Plan do workload executado: `{terraform.get("terraform_plan_executed")}`.
 - Apply do bootstrap executado: `{terraform.get("bootstrap_apply_executed")}`.
 - Apply do workload executado: `{terraform.get("workload_apply_executed")}`.
@@ -963,8 +990,9 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - [x] Compartment dedicado criado e validado.
 - [x] Regiao e CIDR administrativo verificados.
 - [x] Plan do workload gerado e auditado sem apply.
+- [x] Backend local explicito, wrapper e politica offline do state principal preparados.
 - [ ] Capacidade A1 e elegibilidade do Load Balancer 10/10 Mbps verificadas imediatamente antes do apply do workload.
-- [ ] Estrategia de state do workload definida.
+- [ ] State principal inicializado externamente e confirmado vazio.
 - [ ] Evidencias locais atualizadas quando disponiveis.
 
 ## 13. Comando para reproduzir a auditoria

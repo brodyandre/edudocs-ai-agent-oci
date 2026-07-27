@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-27T18:25:18Z",
+  "generated_at": "2026-07-27T19:04:31Z",
   "repository": {
     "name": "edudocs-ai-agent-oci",
     "url": "https://github.com/brodyandre/edudocs-ai-agent-oci"
   },
   "git": {
     "branch": "main",
-    "head": "f4ac0b1c58f16a7e6627f70c5498b9efb89dedcd",
-    "last_commit_message": "feat(infra): adiciona bootstrap do compartment OCI",
-    "last_commit_date": "2026-07-27T15:09:26-03:00",
+    "head": "579f3ae01381bb18fed3478006ba67c1b6a032d0",
+    "last_commit_message": "chore(oci): adota compartment dedicado e revisa o plano",
+    "last_commit_date": "2026-07-27T15:29:55-03:00",
     "sync_main_origin": "0\t0",
     "workspace_clean": true,
     "status_short": "",
@@ -90,7 +90,7 @@
     "pytest": {
       "ok": true,
       "returncode": 0,
-      "tests": 188
+      "tests": 207
     }
   },
   "corpus": {
@@ -311,6 +311,14 @@
     "terraform_installed": true,
     "terraform_version": "Terraform v1.15.8",
     "infrastructure_created": true,
+    "backend_local_explicit": true,
+    "workload_wrapper_present": true,
+    "workload_state_external_prepared": true,
+    "workload_state_default_path": "$HOME/.local/state/edudocs/workload/terraform.tfstate",
+    "workload_tf_data_external_prepared": true,
+    "workload_tf_data_default_path": "$HOME/.local/share/edudocs/terraform-workload",
+    "workload_apply_requires_saved_plan": true,
+    "workload_apply_human_confirmation_required": true,
     "required_version": ">= 1.15.0, < 1.16.0",
     "oci_provider": "~> 8.23.0",
     "modules": {
@@ -358,6 +366,7 @@
     "terraform_fmt_ok": true,
     "terraform_validate_ok": true,
     "terraform_policy_ok": true,
+    "workload_state_policy_ok": true,
     "compartment_bootstrap_policy_ok": true,
     "oci_credentials_verified": true,
     "compartment_verified": true,

@@ -1,4 +1,4 @@
-.PHONY: setup quality corpus index lint test evaluate web-build compose-check terraform-fmt terraform-init terraform-validate terraform-policy runtime-bootstrap-check terraform-check oci-readiness terraform-plan-check compartment-bootstrap-fmt compartment-bootstrap-init compartment-bootstrap-validate compartment-bootstrap-policy compartment-bootstrap-check compartment-bootstrap-plan-check container-release-check container-release-manifest-check images-inspect images-smoke build up down restart ps logs smoke docker-ci project-audit readme-evidence pre-terraform ci clean
+.PHONY: setup quality corpus index lint test evaluate web-build compose-check terraform-fmt terraform-init terraform-validate terraform-policy workload-state-policy workload-terraform-init workload-terraform-validate workload-state-list workload-pre-apply-check runtime-bootstrap-check terraform-check oci-readiness terraform-plan-check compartment-bootstrap-fmt compartment-bootstrap-init compartment-bootstrap-validate compartment-bootstrap-policy compartment-bootstrap-check compartment-bootstrap-plan-check container-release-check container-release-manifest-check images-inspect images-smoke build up down restart ps logs smoke docker-ci project-audit readme-evidence pre-terraform ci clean
 
 PYTHON ?= python3
 VENV_PYTHON ?= .venv/bin/python
@@ -11,6 +11,7 @@ CONTAINER_RELEASE_MANIFEST ?=
 OCI_PROFILE ?= EDUDOCS
 TERRAFORM_PLAN_JSON ?=
 TERRAFORM_TFVARS ?=
+WORKLOAD_TFVARS ?= infrastructure/terraform/terraform.tfvars
 COMPARTMENT_TERRAFORM_DIR ?= infrastructure/terraform-bootstrap/compartment
 COMPARTMENT_PLAN_JSON ?=
 COMPARTMENT_TFVARS ?=
@@ -63,10 +64,28 @@ terraform-validate:
 terraform-policy:
 	$(PYTHON) scripts/check_terraform_policy.py
 
+workload-state-policy:
+	$(PYTHON) scripts/check_workload_state_policy.py
+
+workload-terraform-init:
+	scripts/terraform_workload.sh init
+
+workload-terraform-validate:
+	scripts/terraform_workload.sh validate
+
+workload-state-list:
+	scripts/terraform_workload.sh state-list
+
+workload-pre-apply-check: workload-state-policy terraform-policy runtime-bootstrap-check workload-terraform-init
+	$(PYTHON) scripts/check_repository_hygiene.py
+	$(PYTHON) scripts/check_utf8.py
+	scripts/terraform_workload.sh validate
+	scripts/terraform_workload.sh state-list
+
 runtime-bootstrap-check:
 	$(PYTHON) scripts/check_runtime_bootstrap.py
 
-terraform-check: terraform-fmt terraform-init terraform-validate terraform-policy runtime-bootstrap-check
+terraform-check: terraform-fmt terraform-init terraform-validate terraform-policy workload-state-policy runtime-bootstrap-check
 
 oci-readiness:
 	. "$$HOME/.config/edudocs/oci.env"; $(PYTHON) scripts/check_oci_readiness.py --profile $(OCI_PROFILE) --compartment-name edudocs-ai-prod

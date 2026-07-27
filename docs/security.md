@@ -83,6 +83,8 @@ O Terraform OCI libera SSH apenas para `admin_cidr`. O tráfego HTTP público en
 
 O workload OCI deve usar o compartment filho dedicado `edudocs-ai-prod`. Usar a tenancy/root como `compartment_ocid` é proibido por validação Terraform e por auditoria estática/JSON do plan.
 
+O state principal do workload deve ficar fora do repositório em `$HOME/.local/state/edudocs/workload`, com `TF_DATA_DIR` externo em `$HOME/.local/share/edudocs/terraform-workload`. O apply do workload é permitido somente por `scripts/terraform_workload.sh apply-saved-plan` com plan salvo, permissão restrita e confirmação humana literal.
+
 ## 18. SSH restrito
 
 Acesso SSH à instância OCI deve ser limitado por chave, usuário apropriado e origem controlada. Senhas de SSH não devem ser usadas.
@@ -97,7 +99,7 @@ Dependências, imagens e pacotes do sistema devem receber atualizações compat�
 
 ## 21. CI e segredos
 
-Os workflows de CI usam `permissions: contents: read`, providers `fake` e não recebem `GROQ_API_KEY`. Eles validam Terraform com `init -backend=false` e não executam `plan`, `apply` ou `destroy`. A verificação `scripts/check_repository_hygiene.py` bloqueia arquivos sensíveis versionados, state/plans Terraform, chaves privadas, tokens comuns e valores reais de `GROQ_API_KEY` sem imprimir o segredo detectado.
+Os workflows de CI usam `permissions: contents: read`, providers `fake` e não recebem `GROQ_API_KEY`. Eles validam Terraform com `init -backend=false`, política de state do workload e testes offline, mas não executam `plan`, `apply` ou `destroy`. A verificação `scripts/check_repository_hygiene.py` bloqueia arquivos sensíveis versionados, state/plans Terraform, chaves privadas, tokens comuns e valores reais de `GROQ_API_KEY` sem imprimir o segredo detectado.
 
 Somente `publish-images.yml` usa `packages: write`, e apenas em execução manual sobre `main`. O login no GHCR usa `secrets.GITHUB_TOKEN` pela action oficial de login; nenhum PAT é necessário.
 

@@ -2,7 +2,7 @@
 
 Este diretório prepara o workload OCI do EduDocs AI dentro de um compartment filho dedicado. Validações locais e CI continuam sem criar recursos; um `terraform plan` real pode ser gerado manualmente para arquivo local e auditado sem `apply`.
 
-O compartment `edudocs-ai-prod` é criado por uma pilha independente em `../terraform-bootstrap/compartment`, com state local separado fora do repositório. Este diretório principal não cria compartments e não deve usar o root compartment da tenancy como alvo.
+O compartment `edudocs-ai-prod` é criado por uma pilha independente em `../terraform-bootstrap/compartment`, com state local separado fora do repositório. Este diretório principal não cria compartments e não deve usar o root compartment da tenancy como alvo. O state principal do workload também deve ficar fora do repositório e ser acessado por `../../scripts/terraform_workload.sh`.
 
 ## Escopo
 
@@ -27,7 +27,7 @@ Antes do primeiro `terraform plan` real e antes de qualquer `apply`, confirme:
 - Capacidade A1 disponível na availability domain escolhida.
 - Elegibilidade do OCI Flexible Load Balancer 10 Mbps confirmada na tenancy.
 - `admin_cidr` com IP administrativo em `/32`, nunca `0.0.0.0/0`.
-- Estratégia de state aprovada. O backend local é aceitável apenas para validação isolada; para uso real, defina uma estratégia segura de state antes do primeiro apply.
+- State principal externo inicializado pelo wrapper `../../scripts/terraform_workload.sh`, sem caminho de state versionado e sem state dentro do repositório.
 - Chave pública SSH local existente e autorizada para acesso administrativo.
 
 ## Validação Sem Credenciais
@@ -45,6 +45,7 @@ terraform -chdir=infrastructure/terraform fmt -recursive -check
 terraform -chdir=infrastructure/terraform init -backend=false
 terraform -chdir=infrastructure/terraform validate
 python3 scripts/check_terraform_policy.py
+python3 scripts/check_workload_state_policy.py
 python3 scripts/check_runtime_bootstrap.py
 ```
 
@@ -168,3 +169,18 @@ Os templates não fazem `docker login`, não clonam GitHub, não criam `.env`, n
 Este repositório não versiona `terraform.tfvars`, `tfstate` ou planos. O lockfile `.terraform.lock.hcl` é versionado para fixar o provedor.
 
 Para uso real, confirme a estratégia de state antes de qualquer novo `terraform plan` real e antes de qualquer `apply`. A pilha bootstrap do compartment usa state separado em `$HOME/.local/state/edudocs/compartment/terraform.tfstate`.
+
+O workload principal usa backend `local` sem caminho versionado. O caminho real é injetado pelo wrapper:
+
+```bash
+scripts/terraform_workload.sh init
+scripts/terraform_workload.sh validate
+scripts/terraform_workload.sh state-list
+```
+
+Locais externos padrão:
+
+- State: `$HOME/.local/state/edudocs/workload/terraform.tfstate`
+- `TF_DATA_DIR`: `$HOME/.local/share/edudocs/terraform-workload`
+
+O apply do workload deve usar somente `scripts/terraform_workload.sh apply-saved-plan` com plan salvo em `/tmp`, permissão `600`, auditoria aprovada e confirmação humana literal.

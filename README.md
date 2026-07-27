@@ -441,12 +441,13 @@ Usuário -> OCI Flexible Load Balancer -> VM Ampere A1 -> Nginx -> Next.js/FastA
 
 O endpoint futuro será conhecido somente após apply real e terá o formato `http://<load_balancer_public_ip>`. Uma URL nominal exigirá DNS posteriormente.
 
-O código pode ser criado e validado sem credenciais reais. O Prompt 09 pode criar e validar código Terraform sem credenciais reais. Credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state devem ser confirmados antes do primeiro `terraform plan` real e antes de qualquer `apply`. A partir da Entrega 10C, o workload principal deve usar um compartment filho dedicado; root/tenancy não é alvo permitido.
+O código pode ser criado e validado sem credenciais reais. O Prompt 09 pode criar e validar código Terraform sem credenciais reais. Credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state devem ser confirmados antes do primeiro `terraform plan` real e antes de qualquer `apply`. A partir da Entrega 10C, o workload principal deve usar um compartment filho dedicado; root/tenancy não é alvo permitido. A Entrega 11 prepara o state principal externo em `$HOME/.local/state/edudocs/workload`, `TF_DATA_DIR` externo em `$HOME/.local/share/edudocs/terraform-workload` e wrapper obrigatório para apply somente de saved plan.
 
 Documentação relacionada:
 
 - [Terraform OCI](infrastructure/terraform/README.md)
 - [Bootstrap do compartment OCI](docs/oci-compartment-bootstrap.md)
+- [Runbook de apply do workload OCI](docs/oci-workload-apply-runbook.md)
 - [Deployment OCI](docs/deployment-oci.md)
 - [Auditoria do plan OCI](docs/oci-plan-audit.md)
 - [Controles de custo](docs/cost-controls.md)

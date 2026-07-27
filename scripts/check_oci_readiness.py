@@ -191,6 +191,60 @@ def validate_target_compartment(
     return findings, summary
 
 
+def validate_empty_workload_resources(
+    instances: list[dict[str, Any]], load_balancers: list[dict[str, Any]]
+) -> tuple[list[Finding], dict[str, Any]]:
+    findings: list[Finding] = []
+    summary: dict[str, Any] = {}
+
+    active_a1_instances = [
+        item
+        for item in instances
+        if item.get("shape") == "VM.Standard.A1.Flex"
+        and item.get("lifecycle-state") not in {"TERMINATED", "TERMINATING"}
+    ]
+    existing_load_balancers = [
+        item
+        for item in load_balancers
+        if item.get("lifecycle-state") not in {"DELETED", "DELETING"}
+    ]
+
+    summary["existing_a1_flex_instances"] = len(active_a1_instances)
+    summary["existing_a1_flex_states"] = sorted(
+        {
+            item.get("lifecycle-state", "UNKNOWN")
+            for item in active_a1_instances
+            if item.get("lifecycle-state")
+        }
+    )
+    summary["existing_load_balancers"] = len(existing_load_balancers)
+    summary["existing_load_balancer_states"] = sorted(
+        {
+            item.get("lifecycle-state", "UNKNOWN")
+            for item in existing_load_balancers
+            if item.get("lifecycle-state")
+        }
+    )
+
+    if active_a1_instances:
+        findings.append(
+            Finding(
+                "oci:compute",
+                "existing-a1-flex-instance",
+                "Compartment alvo ja possui VM A1 Flex nao terminada.",
+            )
+        )
+    if existing_load_balancers:
+        findings.append(
+            Finding(
+                "oci:load-balancer",
+                "existing-load-balancer",
+                "Compartment alvo ja possui Load Balancer nao removido.",
+            )
+        )
+    return findings, summary
+
+
 def collect_findings(
     profile: str, ssh_public_key: Path, compartment_name: str
 ) -> tuple[list[Finding], dict[str, Any]]:
@@ -296,6 +350,44 @@ def collect_findings(
         )
         findings.extend(compartment_findings)
         summary.update(compartment_summary)
+        target_ocid = next(
+            (
+                item.get("id", "")
+                for item in compartments
+                if item.get("name") == compartment_name
+                and item.get("lifecycle-state") == "ACTIVE"
+                and item.get("id", "") != tenancy
+            ),
+            "",
+        )
+        if target_ocid:
+            instances = oci_json(
+                profile,
+                [
+                    "compute",
+                    "instance",
+                    "list",
+                    "--compartment-id",
+                    target_ocid,
+                    "--all",
+                ],
+            ).get("data", [])
+            load_balancers = oci_json(
+                profile,
+                [
+                    "lb",
+                    "load-balancer",
+                    "list",
+                    "--compartment-id",
+                    target_ocid,
+                    "--all",
+                ],
+            ).get("data", [])
+            resource_findings, resource_summary = validate_empty_workload_resources(
+                instances, load_balancers
+            )
+            findings.extend(resource_findings)
+            summary.update(resource_summary)
     except (subprocess.CalledProcessError, json.JSONDecodeError) as exc:
         findings.append(
             Finding(
@@ -332,6 +424,10 @@ def print_summary(summary: dict[str, Any]) -> None:
         "target_compartment_state",
         "target_compartment_ocid",
         "target_compartment_parent",
+        "existing_a1_flex_instances",
+        "existing_a1_flex_states",
+        "existing_load_balancers",
+        "existing_load_balancer_states",
     ):
         if key in summary:
             value = summary[key]

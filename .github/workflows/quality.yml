@@ -93,6 +93,9 @@ jobs:
       - name: Validate Terraform policy
         run: python3 scripts/check_terraform_policy.py
 
+      - name: Validate workload state policy
+        run: python3 scripts/check_workload_state_policy.py
+
       - name: Validate compartment bootstrap policy
         run: python3 scripts/check_compartment_bootstrap_policy.py
 
@@ -104,7 +107,8 @@ jobs:
           python -m pytest \
             apps/api/tests/test_terraform_policy.py \
             apps/api/tests/test_oci_readiness_and_plan.py \
-            apps/api/tests/test_compartment_bootstrap.py
+            apps/api/tests/test_compartment_bootstrap.py \
+            apps/api/tests/test_workload_state_policy.py
 
       - name: Validate container publish policy
         run: python3 scripts/check_container_publish_policy.py
