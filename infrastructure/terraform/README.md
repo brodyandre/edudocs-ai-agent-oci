@@ -1,6 +1,8 @@
 # Terraform OCI
 
-Este diretório prepara a infraestrutura OCI do EduDocs AI. Validações locais e CI continuam sem criar recursos; o primeiro `terraform plan` real pode ser gerado manualmente para arquivo local e auditado sem `apply`.
+Este diretório prepara o workload OCI do EduDocs AI dentro de um compartment filho dedicado. Validações locais e CI continuam sem criar recursos; um `terraform plan` real pode ser gerado manualmente para arquivo local e auditado sem `apply`.
+
+O compartment `edudocs-ai-prod` é criado por uma pilha independente em `../terraform-bootstrap/compartment`, com state local separado fora do repositório. Este diretório principal não cria compartments e não deve usar o root compartment da tenancy como alvo.
 
 ## Escopo
 
@@ -20,7 +22,7 @@ O código declara o bootstrap da aplicação por imagens GHCR públicas e imutá
 Antes do primeiro `terraform plan` real e antes de qualquer `apply`, confirme:
 
 - Credenciais OCI configuradas fora do Git, por exemplo em `~/.oci/config`.
-- Tenancy e compartment corretos. Quando não houver compartment filho ativo, o root compartment da tenancy pode ser usado se aprovado.
+- Tenancy e compartment filho dedicado corretos. `compartment_ocid` deve apontar para um OCID de `compartment`, nunca para a tenancy/root.
 - Home region escolhida para evitar criação acidental em região errada.
 - Capacidade A1 disponível na availability domain escolhida.
 - Elegibilidade do OCI Flexible Load Balancer 10 Mbps confirmada na tenancy.
@@ -67,6 +69,8 @@ make terraform-plan-check TERRAFORM_PLAN_JSON=/tmp/edudocs-oci.tfplan.json
 
 O plan foi auditado sem `apply` e sem versionar tfvars, state ou plan. Consulte [Auditoria do plan OCI](../../docs/oci-plan-audit.md).
 
+Na Entrega 10C, após a criação aprovada do compartment por bootstrap, este plan deve ser regenerado com `compartment_ocid` apontando para `edudocs-ai-prod`. O workload principal continua sem `apply` nesta etapa.
+
 ## Variáveis
 
 Use `terraform.tfvars.example` como referência e crie um `terraform.tfvars` local fora do Git quando for validar contra uma tenancy real.
@@ -80,6 +84,8 @@ Valores sem default por segurança:
 - `admin_cidr`
 - `api_image_ref`
 - `web_image_ref`
+
+`compartment_ocid` aceita somente OCID de compartment filho dedicado. O check `dedicated_workload_compartment` bloqueia `compartment_ocid == tenancy_ocid` e mantém `environment = "production"` no workload.
 
 Valores conservadores com default:
 
@@ -161,4 +167,4 @@ Os templates não fazem `docker login`, não clonam GitHub, não criam `.env`, n
 
 Este repositório não versiona `terraform.tfvars`, `tfstate` ou planos. O lockfile `.terraform.lock.hcl` é versionado para fixar o provedor.
 
-Para uso real, defina a estratégia de state antes do primeiro `terraform plan` real.
+Para uso real, confirme a estratégia de state antes de qualquer novo `terraform plan` real e antes de qualquer `apply`. A pilha bootstrap do compartment usa state separado em `$HOME/.local/state/edudocs/compartment/terraform.tfstate`.

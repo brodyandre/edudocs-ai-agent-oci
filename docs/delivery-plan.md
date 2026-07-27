@@ -16,7 +16,7 @@
 | Exemplos de respostas | Pendente | Respostas com citações e recusas quando necessário. |
 | Agente funcional | Pendente | Fluxo RAG executável com provedor real e falso. |
 | Leitura e processamento de PDF | Pendente | Ingestão local validada com metadados e índice. |
-| Terraform OCI | Concluído | Código validável sem credenciais reais e primeiro plan real auditado sem `apply`. |
+| Terraform OCI | Concluído | Código validável sem credenciais reais, bootstrap de compartment dedicado e plan real auditável sem `apply` do workload. |
 | Load Balancer OCI | Concluído no plan | Flexible Load Balancer 10 Mbps, backend set, backend privado e listener HTTP declarados e revisados no plan. |
 | Deploy OCI | Pendente | Infraestrutura aplicada e aplicação disponível. |
 | Link público | Pendente | URL pública real após deploy. |
@@ -33,7 +33,7 @@
 - Testes: usar provedor falso determinístico e evitar consumo externo nos testes.
 - Interface: criar fluxo simples para perguntar e visualizar resposta com fontes.
 - Execução local: validar Docker Compose.
-- Deploy: aprovar plan auditado, provisionar OCI com Terraform, iniciar Nginx na VM via cloud-init e validar via Load Balancer.
+- Deploy: criar compartment dedicado por bootstrap aprovado, aprovar plan do workload, provisionar OCI com Terraform, iniciar Nginx na VM via cloud-init e validar via Load Balancer.
 - Evidências: registrar comandos, exemplos, link público e captura de tela final.
 
 ## Definição de pronto
@@ -48,7 +48,7 @@ Uma entrega é considerada pronta quando possui implementação ou documentaçã
 - Provedor falso antes de testes confiáveis.
 - API antes da interface integrada.
 - Docker Compose antes do deploy.
-- Terraform, Load Balancer e Nginx antes do link público; credenciais, root compartment, home region e CIDR administrativo já validados para o plan; capacidade A1, elegibilidade do LB 10 Mbps e state devem ser revisados antes de qualquer apply.
+- Terraform, Load Balancer e Nginx antes do link público; credenciais, compartment dedicado, home region e CIDR administrativo já validados para o plan; capacidade A1, elegibilidade do LB 10 Mbps e state devem ser revisados antes de qualquer apply de workload.
 
 ## Riscos
 
@@ -73,7 +73,8 @@ Uma entrega é considerada pronta quando possui implementação ou documentaçã
 10. Validar execução local com Docker Compose.
 11. Validar Terraform OCI sem credenciais reais.
 12. Confirmar credenciais OCI e revisar o primeiro plan real.
-13. Provisionar OCI somente após aprovação, validar Nginx/cloud-init e registrar evidências finais.
+13. Criar o compartment dedicado por bootstrap aprovado.
+14. Provisionar workload OCI somente após aprovação, validar Nginx/cloud-init e registrar evidências finais.
 
 ## Critérios de aceite
 

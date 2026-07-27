@@ -5,6 +5,10 @@ tenancy_ocid     = "ocid1.tenancy.oc1..substitua"
 compartment_ocid = "ocid1.compartment.oc1..substitua"
 region           = "substitua-pela-home-region"
 
+# O compartment do workload deve existir antes do plan principal.
+# Use um compartment filho dedicado, preferencialmente edudocs-ai-prod.
+# O root compartment da tenancy e proibido para recursos do EduDocs AI.
+
 # Perfil local do arquivo ~/.oci/config. Nao versione o arquivo de configuracao OCI.
 config_file_profile = "DEFAULT"
 

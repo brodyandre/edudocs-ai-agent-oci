@@ -59,7 +59,7 @@ O MVP não inclui autenticação, OCR, upload público de documentos, Kubernetes
 - **Índice local**: armazena vetores, metadados e referências de chunks.
 - **Extração de PDFs**: PyMuPDF para leitura página a página.
 - **LLM**: Groq inicialmente, isolado por contrato de provedor.
-- **Infraestrutura**: Docker Compose local, Nginx e Terraform OCI validável para Compute ARM64 com Flexible Load Balancer 10 Mbps.
+- **Infraestrutura**: Docker Compose local, Nginx, bootstrap Terraform para compartment dedicado e Terraform OCI validável para Compute ARM64 com Flexible Load Balancer 10 Mbps.
 
 ## 10. Diagrama Mermaid da arquitetura
 
@@ -128,7 +128,7 @@ A execução local usa Docker Compose para subir API, interface, Nginx e volume 
 
 ## 16. Deploy na OCI
 
-O deploy planejado usa OCI Flexible Load Balancer público como único endpoint HTTP, encaminhando para Nginx em Docker na VM Ampere A1 pela porta privada 8080. O código em `infrastructure/terraform` cria VCN, subnet pública, dois NSGs, instância A1 Flex, Load Balancer flexível 10/10 Mbps, cloud-init com systemd/Compose por digests GHCR e bucket privado opcional. Ainda não houve `terraform plan`, `apply` ou deploy real.
+O deploy planejado usa OCI Flexible Load Balancer público como único endpoint HTTP, encaminhando para Nginx em Docker na VM Ampere A1 pela porta privada 8080. A pilha `infrastructure/terraform-bootstrap/compartment` cria somente o compartment filho `edudocs-ai-prod`; o código em `infrastructure/terraform` consome esse compartment para criar VCN, subnet pública, dois NSGs, instância A1 Flex, Load Balancer flexível 10/10 Mbps, cloud-init com systemd/Compose por digests GHCR e bucket privado opcional. O workload principal permanece sem `apply` até revisão explícita de um plan próprio.
 
 ## 17. Compatibilidade ARM64
 

@@ -75,20 +75,36 @@ jobs:
       - name: Validate Terraform formatting
         run: terraform -chdir=infrastructure/terraform fmt -recursive -check
 
+      - name: Validate compartment bootstrap formatting
+        run: terraform -chdir=infrastructure/terraform-bootstrap/compartment fmt -recursive -check
+
       - name: Initialize Terraform without backend
         run: terraform -chdir=infrastructure/terraform init -backend=false
+
+      - name: Initialize compartment bootstrap without backend
+        run: terraform -chdir=infrastructure/terraform-bootstrap/compartment init -backend=false
 
       - name: Validate Terraform configuration
         run: terraform -chdir=infrastructure/terraform validate
 
+      - name: Validate compartment bootstrap configuration
+        run: terraform -chdir=infrastructure/terraform-bootstrap/compartment validate
+
       - name: Validate Terraform policy
         run: python3 scripts/check_terraform_policy.py
+
+      - name: Validate compartment bootstrap policy
+        run: python3 scripts/check_compartment_bootstrap_policy.py
 
       - name: Validate OCI runtime bootstrap
         run: python3 scripts/check_runtime_bootstrap.py
 
       - name: Test Terraform policy
-        run: python -m pytest apps/api/tests/test_terraform_policy.py
+        run: |
+          python -m pytest \
+            apps/api/tests/test_terraform_policy.py \
+            apps/api/tests/test_oci_readiness_and_plan.py \
+            apps/api/tests/test_compartment_bootstrap.py
 
       - name: Validate container publish policy
         run: python3 scripts/check_container_publish_policy.py

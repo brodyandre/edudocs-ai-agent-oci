@@ -1,0 +1,6 @@
+tenancy_ocid        = "ocid1.tenancy.oc1..substitua"
+region              = "sa-saopaulo-1"
+config_file_profile = "EDUDOCS"
+compartment_name    = "edudocs-ai-prod"
+
+common_tags = {}

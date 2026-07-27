@@ -1,12 +1,13 @@
 # Deployment OCI
 
-Este documento descreve o caminho de deploy previsto para o EduDocs AI na OCI. A entrega atual valida código Terraform, cloud-init, bootstrap declarativo da aplicação e o primeiro `terraform plan` real; ela não cria recursos reais.
+Este documento descreve o caminho de deploy previsto para o EduDocs AI na OCI. A entrega atual separa o bootstrap do compartment dedicado do workload principal, valida código Terraform, cloud-init e política local, e mantém o workload sem `apply`.
 
 ## Estado Atual
 
 Concluído:
 
 - Terraform em `infrastructure/terraform`.
+- Stack bootstrap independente em `infrastructure/terraform-bootstrap/compartment` para criar somente `edudocs-ai-prod`.
 - Módulos de rede, compute, load balancer e object storage opcional.
 - OCI Flexible Load Balancer público declarado com 10/10 Mbps, listener HTTP 80, backend set, backend privado 8080 e health checker `/health`.
 - Dois NSGs separados: Load Balancer público e aplicação privada.
@@ -14,34 +15,42 @@ Concluído:
 - Workflow manual preparado e validado para publicar imagens API/Web multiarch no GHCR.
 - Compose de produção preparado para usar referências imutáveis por digest e providers `fake`.
 - Validação por `terraform fmt`, `terraform init -backend=false`, `terraform validate`, política local e `scripts/check_runtime_bootstrap.py`.
-- Readiness OCI validada com perfil `EDUDOCS`, home region `sa-saopaulo-1`, AD disponível e root compartment da tenancy como alvo.
+- Readiness OCI ajustada para exigir o compartment filho `edudocs-ai-prod` ativo antes do plan do workload.
 - Primeiro `terraform plan` real gerado, salvo fora do Git e auditado por `scripts/check_terraform_plan.py`.
 - CI sem credenciais e sem `plan/apply/destroy`.
 
 Pendente:
 
-- Confirmação final de capacidade A1 imediatamente antes do apply.
-- Confirmação final de elegibilidade do Flexible Load Balancer 10 Mbps na tenancy imediatamente antes do apply.
-- Estratégia de state aprovada para operação real.
-- Qualquer `terraform apply`.
+- Commit e CI verde do bootstrap antes de qualquer mutação OCI.
+- Plan bootstrap salvo e aprovado para criar somente `edudocs-ai-prod`.
+- Apply restrito ao plan salvo do bootstrap do compartment.
+- Novo plan do workload principal apontando para o compartment filho.
+- Confirmação final de capacidade A1 antes de qualquer apply do workload.
+- Confirmação final de elegibilidade do Flexible Load Balancer 10 Mbps na tenancy antes de qualquer apply do workload.
+- Estratégia de state aprovada para operação real do workload.
+- Qualquer `terraform apply` do workload principal.
 - IP real do Load Balancer, Groq real, domínio, HTTPS e screenshots OCI.
 
 ## Fluxo Seguro Futuro
 
-1. Confirmar `API_IMAGE_REF` e `WEB_IMAGE_REF` por digest pelo artefato `edudocs-container-release`.
-2. Confirmar que as imagens GHCR estão públicas e aceitam pull anônimo.
-3. Manter `terraform.tfvars` local fora do Git com profile `EDUDOCS`, CIDR administrativo em `/32`, chave SSH e digests GHCR.
-4. Rodar `make oci-readiness`.
-5. Rodar `make terraform-check`.
-6. Gerar `terraform plan` real para arquivo local em `/tmp`.
-7. Gerar JSON do plan com `terraform show -json`.
-8. Auditar com `make terraform-plan-check TERRAFORM_PLAN_JSON=/tmp/edudocs-oci.tfplan.json`.
-9. Revisar novamente capacidade A1, Free Tier, state e plano salvo.
-10. Somente após revisão e aprovação humana, considerar `terraform apply`.
-11. Nunca usar `-auto-approve`.
-12. Durante o apply aprovado, o cloud-init instala Docker, faz pull anônimo dos digests, inicia `edudocs-compose.service` e aguarda `/health`.
-13. Validar `/health` pelo Load Balancer.
-14. Abrir `http://<IP-PUBLICO-DO-LOAD-BALANCER>`.
+1. Confirmar que o código bootstrap do compartment está em `main` e com CI verde.
+2. Gerar, auditar e aprovar o plan salvo da pilha `terraform-bootstrap/compartment`.
+3. Aplicar somente o plan salvo que cria `edudocs-ai-prod`.
+4. Aguardar `edudocs-ai-prod` ficar `ACTIVE`.
+5. Confirmar `API_IMAGE_REF` e `WEB_IMAGE_REF` por digest pelo artefato `edudocs-container-release`.
+6. Confirmar que as imagens GHCR estão públicas e aceitam pull anônimo.
+7. Manter `terraform.tfvars` local fora do Git com profile `EDUDOCS`, CIDR administrativo em `/32`, chave SSH, digests GHCR e OCID do compartment filho.
+8. Rodar `make oci-readiness`.
+9. Rodar `make terraform-check`.
+10. Gerar `terraform plan` real do workload para arquivo local em `/tmp`.
+11. Gerar JSON do plan com `terraform show -json`.
+12. Auditar com `make terraform-plan-check TERRAFORM_PLAN_JSON=/tmp/edudocs-oci.tfplan.json TERRAFORM_TFVARS=infrastructure/terraform/terraform.tfvars`.
+13. Revisar novamente capacidade A1, Free Tier, state e plano salvo.
+14. Somente após revisão e aprovação humana, considerar `terraform apply` do workload em etapa futura.
+15. Nunca usar `-auto-approve`.
+16. Durante o apply aprovado do workload, o cloud-init instala Docker, faz pull anônimo dos digests, inicia `edudocs-compose.service` e aguarda `/health`.
+17. Validar `/health` pelo Load Balancer.
+18. Abrir `http://<IP-PUBLICO-DO-LOAD-BALANCER>`.
 
 ## Preparação Da Aplicação
 
@@ -74,6 +83,8 @@ A allowlist do plan real aceita apenas:
 
 O plan deve reprovar se não houver Load Balancer, se houver mais de um Load Balancer, se a banda ultrapassar 10 Mbps, se aparecer recurso pago inesperado, ou se houver delete/replace inesperado.
 
+O plan do workload também deve reprovar se qualquer recurso com `compartment_id` apontar para a tenancy/root ou para valor diferente do compartment filho informado no `terraform.tfvars` local.
+
 ## UFW
 
 O pacote `ufw` é instalado pela preparação da VM, mas não é habilitado automaticamente. O controle primário de exposição fica no NSG da OCI. Antes de habilitar UFW manualmente, confirme regras equivalentes para SSH administrativo e HTTP/HTTPS necessários.
@@ -89,4 +100,4 @@ terraform apply -auto-approve
 terraform destroy -auto-approve
 ```
 
-`terraform plan` é permitido somente para arquivo local, com revisão e auditoria JSON. `apply` e `destroy` dependem de aprovação explícita posterior e não fazem parte desta entrega.
+`terraform plan` é permitido somente para arquivo local, com revisão e auditoria JSON. Nesta entrega, o único `apply` permitido é o do plan salvo da pilha bootstrap do compartment; `apply` do workload principal e `destroy` não fazem parte desta etapa.

@@ -5,6 +5,7 @@ O Terraform foi desenhado para mirar um perfil Always Free conservador, sem prom
 ## Controles Aplicados
 
 - Shape travado em `VM.Standard.A1.Flex`.
+- Workload restrito ao compartment filho dedicado `edudocs-ai-prod`; root/tenancy não é alvo permitido.
 - Default de 2 OCPUs.
 - Default de 12 GB de memória.
 - Boot volume default de 50 GB, com validação até 100 GB.
@@ -35,6 +36,7 @@ O Terraform foi desenhado para mirar um perfil Always Free conservador, sem prom
 Antes de qualquer `apply`:
 
 - Verifique se a home region é a região pretendida.
+- Verifique se `edudocs-ai-prod` existe, está `ACTIVE` e é filho direto da tenancy.
 - Verifique se a capacidade A1 está disponível.
 - Verifique se a tenancy aceita OCI Flexible Load Balancer 10/10 Mbps antes de qualquer apply.
 - Verifique limites e cotas do compartment.
@@ -61,9 +63,12 @@ O script `scripts/check_terraform_policy.py` bloqueia padrões de risco como:
 - Bucket público.
 - Segredos evidentes em Terraform ou cloud-init.
 - Versionamento de tfvars reais, state ou planos.
+- Uso da tenancy/root como `compartment_ocid` do workload.
 
 ## Estado E Planos
 
 O primeiro `terraform plan` real foi salvo fora do Git e auditado por `scripts/check_terraform_plan.py`. O plan propõe somente creates permitidos para VCN, subnet, NSGs, uma VM A1 Flex, um Flexible Load Balancer 10/10 Mbps e componentes associados. Ele não executa `apply`, não cria recursos e não comprova disponibilidade final de Free Tier.
+
+Na Entrega 10C, a criação do compartment fica isolada em `infrastructure/terraform-bootstrap/compartment` e deve gerar exatamente um recurso `oci_identity_compartment`. O novo plan do workload deve apontar todos os recursos para o compartment filho dedicado e não deve ser aplicado nesta etapa.
 
 Arquivos `terraform.tfvars`, `*.tfstate`, `*.tfplan` e `tfplan` não devem ser versionados. O arquivo `.terraform.lock.hcl` deve ser versionado para fixar o provedor validado.

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import sys
@@ -25,6 +26,7 @@ ALLOWED_RESOURCE_TYPES = {
     "oci_load_balancer_load_balancer",
     "oci_objectstorage_bucket",
 }
+OCI_COMPARTMENT_PREFIX = "ocid1." + "compartment.oc1."
 
 FORBIDDEN_TEXT_PATTERNS = {
     "latest-reference": re.compile(r"(?<![A-Za-z0-9_-])latest(?![A-Za-z0-9_-])", re.I),
@@ -62,13 +64,28 @@ def load_plan(path: Path) -> dict[str, Any]:
     return data
 
 
+def load_tfvars(path: Path | None) -> dict[str, str]:
+    if path is None:
+        return {}
+    text = path.read_text(encoding="utf-8")
+    values: dict[str, str] = {}
+    for key in ("tenancy_ocid", "compartment_ocid"):
+        match = re.search(rf'(?m)^\s*{key}\s*=\s*"([^"]+)"', text)
+        if match:
+            values[key] = match.group(1)
+    return values
+
+
 def resource_changes(plan: dict[str, Any]) -> list[dict[str, Any]]:
     changes = plan.get("resource_changes", [])
     return [item for item in changes if isinstance(item, dict)]
 
 
-def collect_resource_findings(changes: list[dict[str, Any]]) -> list[Finding]:
+def collect_resource_findings(
+    changes: list[dict[str, Any]], tfvars: dict[str, str] | None = None
+) -> list[Finding]:
     findings: list[Finding] = []
+    tfvars = tfvars or {}
     for item in changes:
         address = item.get("address", "<unknown>")
         resource_type = item.get("type", "")
@@ -104,14 +121,49 @@ def collect_resource_findings(changes: list[dict[str, Any]]) -> list[Finding]:
                 )
             )
 
-        findings.extend(validate_resource_values(address, resource_type, after))
+        findings.extend(validate_resource_values(address, resource_type, after, tfvars))
     return findings
 
 
 def validate_resource_values(
-    address: str, resource_type: str, values: dict[str, Any]
+    address: str,
+    resource_type: str,
+    values: dict[str, Any],
+    tfvars: dict[str, str] | None = None,
 ) -> list[Finding]:
     findings: list[Finding] = []
+    tfvars = tfvars or {}
+    tenancy_ocid = tfvars.get("tenancy_ocid")
+    compartment_ocid = tfvars.get("compartment_ocid")
+    compartment_id = values.get("compartment_id")
+
+    if resource_type in {
+        "oci_core_instance",
+        "oci_core_internet_gateway",
+        "oci_core_network_security_group",
+        "oci_core_route_table",
+        "oci_core_subnet",
+        "oci_core_vcn",
+        "oci_load_balancer_load_balancer",
+        "oci_objectstorage_bucket",
+    }:
+        if tenancy_ocid and compartment_id == tenancy_ocid:
+            findings.append(
+                Finding(
+                    address,
+                    "workload-root-compartment",
+                    "Recurso de workload nao pode usar tenancy/root compartment.",
+                )
+            )
+        if compartment_ocid and compartment_id and compartment_id != compartment_ocid:
+            findings.append(
+                Finding(
+                    address,
+                    "workload-compartment-mismatch",
+                    "Recurso de workload deve usar o compartment filho do tfvars.",
+                )
+            )
+
     if resource_type == "oci_core_instance":
         if values.get("shape") != "VM.Standard.A1.Flex":
             findings.append(
@@ -223,11 +275,65 @@ def summarize(changes: list[dict[str, Any]]) -> dict[str, int]:
     return dict(sorted(summary.items()))
 
 
-def collect_findings(plan: dict[str, Any]) -> list[Finding]:
+def collect_configuration_findings(
+    plan: dict[str, Any], tfvars: dict[str, str] | None = None
+) -> list[Finding]:
+    findings: list[Finding] = []
+    tfvars = tfvars or {}
+    root = plan.get("configuration", {}).get("root_module", {})
+    text = json.dumps(root, sort_keys=True, ensure_ascii=False)
+    if tfvars:
+        tenancy = tfvars.get("tenancy_ocid", "")
+        compartment = tfvars.get("compartment_ocid", "")
+        if tenancy and compartment and tenancy == compartment:
+            findings.append(
+                Finding(
+                    "tfvars",
+                    "tfvars-root-compartment",
+                    "compartment_ocid nao pode ser igual a tenancy_ocid.",
+                )
+            )
+        if compartment and not compartment.startswith(OCI_COMPARTMENT_PREFIX):
+            findings.append(
+                Finding(
+                    "tfvars",
+                    "tfvars-compartment-ocid",
+                    "compartment_ocid deve ser OCID de compartment.",
+                )
+            )
+    for forbidden in (
+        "allow_root_compartment",
+        "use_root_compartment",
+        "skip_compartment_validation",
+    ):
+        if forbidden in text:
+            findings.append(
+                Finding("configuration", "root-escape-hatch", "Escape hatch de root proibido.")
+            )
+    if re.search(r"var\.tenancy_ocid", text) and re.search(
+        r"oci_(?:core|load_balancer|objectstorage)", text
+    ):
+        # Data sources/provider can use tenancy. Managed workload resources are checked
+        # through resource values above; this catches accidental direct expressions.
+        if "compartment_ocid" not in text:
+            findings.append(
+                Finding(
+                    "configuration",
+                    "configuration-uses-tenancy",
+                    "Configuracao de workload nao deve depender de tenancy_ocid como compartment.",
+                )
+            )
+    return findings
+
+
+def collect_findings(
+    plan: dict[str, Any], tfvars: dict[str, str] | None = None
+) -> list[Finding]:
     changes = resource_changes(plan)
     findings: list[Finding] = []
-    findings.extend(collect_resource_findings(changes))
+    findings.extend(collect_resource_findings(changes, tfvars))
     findings.extend(collect_text_findings(plan))
+    findings.extend(collect_configuration_findings(plan, tfvars))
     if not any(item.get("type") == "oci_load_balancer_load_balancer" for item in changes):
         findings.append(
             Finding(
@@ -247,16 +353,22 @@ def collect_findings(plan: dict[str, Any]) -> list[Finding]:
     return findings
 
 
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("plan_json")
+    parser.add_argument("--tfvars")
+    return parser.parse_args(argv)
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) != 1:
-        print("uso: check_terraform_plan.py PLAN_JSON", file=sys.stderr)
-        return 2
+    args = parse_args(argv)
     try:
-        plan = load_plan(Path(argv[0]))
+        plan = load_plan(Path(args.plan_json))
+        tfvars = load_tfvars(Path(args.tfvars) if args.tfvars else None)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"plan: invalid-json: {exc}", file=sys.stderr)
         return 1
-    findings = collect_findings(plan)
+    findings = collect_findings(plan, tfvars)
     if findings:
         for finding in findings:
             print(f"{finding.address}: {finding.kind}: {finding.message}")

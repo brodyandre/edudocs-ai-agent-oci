@@ -25,6 +25,14 @@ def write_file(root: Path, path: str, content: str) -> None:
 
 def valid_variables() -> str:
     return """
+variable "tenancy_ocid" {
+  validation { condition = can(regex("^ocid1\\\\.tenancy\\\\.oc1\\\\.", var.tenancy_ocid)) }
+}
+variable "compartment_ocid" {
+  description = "OCID do compartment filho dedicado. Root compartment e proibido."
+  validation { condition = can(regex("^ocid1\\\\.compartment\\\\.oc1\\\\.", var.compartment_ocid)) }
+}
+variable "environment" { default = "production" }
 variable "compute_shape" { default = "VM.Standard.A1.Flex" }
 variable "compute_ocpus" {
   default = 2
@@ -87,6 +95,21 @@ variable "application_health_path" {
 }
 variable "application_root_dir" { default = "/opt/edudocs" }
 variable "application_start_timeout_seconds" { default = 600 }
+"""
+
+
+def valid_checks() -> str:
+    return """
+check "dedicated_workload_compartment" {
+  assert {
+    condition = (
+      var.compartment_ocid != var.tenancy_ocid
+      && can(regex("^ocid1\\\\.compartment\\\\.oc1\\\\.", var.compartment_ocid))
+      && var.environment == "production"
+    )
+    error_message = "Workload production deve usar compartment filho dedicado."
+  }
+}
 """
 
 
@@ -284,9 +307,23 @@ terraform {
 """,
         "infrastructure/terraform/providers.tf": 'provider "oci" {}',
         "infrastructure/terraform/variables.tf": valid_variables(),
+        "infrastructure/terraform/checks.tf": valid_checks(),
         "infrastructure/terraform/main.tf": """
+module "network" {
+  compartment_ocid = var.compartment_ocid
+}
+
+module "compute" {
+  compartment_ocid = var.compartment_ocid
+}
+
 module "load_balancer" {
+  compartment_ocid   = var.compartment_ocid
   backend_private_ip = module.compute.private_ip
+}
+
+module "object_storage" {
+  compartment_ocid = var.compartment_ocid
 }
 """,
         "infrastructure/terraform/data.tf": "",
@@ -294,20 +331,17 @@ module "load_balancer" {
         "infrastructure/terraform/outputs.tf": "",
         "infrastructure/terraform/terraform.tfvars.example": """
 tenancy_ocid = "ocid1.tenancy.oc1..substitua"
+# O workload deve usar compartment filho dedicado; root compartment e proibido.
 compartment_ocid = "ocid1.compartment.oc1..substitua"
 admin_cidr = "203.0.113.10/32"
 """,
         "infrastructure/terraform/.terraform.lock.hcl": "# lock",
         "infrastructure/terraform/README.md": "# Terraform",
         "infrastructure/cloud-init/app-server.yaml.tftpl": valid_cloud_init(),
-        "infrastructure/cloud-init/docker-compose.prod.yaml.tftpl": (
-            valid_compose_template()
-        ),
+        "infrastructure/cloud-init/docker-compose.prod.yaml.tftpl": (valid_compose_template()),
         "infrastructure/cloud-init/nginx.conf.tftpl": valid_nginx_template(),
         "infrastructure/cloud-init/runtime.env.tftpl": valid_runtime_env_template(),
-        "infrastructure/cloud-init/edudocs-compose.service.tftpl": (
-            valid_systemd_template()
-        ),
+        "infrastructure/cloud-init/edudocs-compose.service.tftpl": (valid_systemd_template()),
         "scripts/check_runtime_bootstrap.py": "# runtime bootstrap validator",
         "infrastructure/terraform/modules/network/main.tf": valid_network(),
         "infrastructure/terraform/modules/network/variables.tf": "",
@@ -533,9 +567,7 @@ def test_compute_shape_is_restricted_to_a1_flex(tmp_path: Path) -> None:
     write_valid_tree(tmp_path)
     variables = tmp_path / "infrastructure/terraform/variables.tf"
     variables.write_text(
-        variables.read_text(encoding="utf-8").replace(
-            "VM.Standard.A1.Flex", "VM.Standard.E4.Flex"
-        ),
+        variables.read_text(encoding="utf-8").replace("VM.Standard.A1.Flex", "VM.Standard.E4.Flex"),
         encoding="utf-8",
     )
 
@@ -731,9 +763,7 @@ def test_bootstrap_rejects_docker_login_token_and_clone(tmp_path: Path) -> None:
     fake_github_token = "ghp_" + ("a" * 30)
     service = tmp_path / "infrastructure/cloud-init/edudocs-compose.service.tftpl"
     service.write_text(
-        valid_systemd_template()
-        + "\ndocker login ghcr.io\n"
-        + f"{fake_github_token}\n",
+        valid_systemd_template() + "\ndocker login ghcr.io\n" + f"{fake_github_token}\n",
         encoding="utf-8",
     )
     app = tmp_path / "infrastructure/cloud-init/app-server.yaml.tftpl"
@@ -796,3 +826,50 @@ admin_cidr = "203.0.113.10/32"
     )
 
     assert policy.find_example_risks(tmp_path) == []
+
+
+def test_workload_root_compartment_validation_is_required(tmp_path: Path) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    variables = tmp_path / "infrastructure/terraform/variables.tf"
+    variables.write_text(
+        variables.read_text(encoding="utf-8").replace(
+            "ocid1\\\\.compartment\\\\.oc1", "ocid1\\\\.(compartment|tenancy)"
+        ),
+        encoding="utf-8",
+    )
+
+    assert "compartment-allows-tenancy" in kinds(policy, tmp_path)
+
+
+def test_dedicated_compartment_check_is_required(tmp_path: Path) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    (tmp_path / "infrastructure/terraform/checks.tf").write_text(
+        'check "dedicated_workload_compartment" {}\n', encoding="utf-8"
+    )
+
+    result = kinds(policy, tmp_path)
+
+    assert "check-root-difference" in result
+    assert "check-compartment-ocid" in result
+    assert "check-production" in result
+
+
+def test_workload_modules_cannot_receive_tenancy_ocid(tmp_path: Path) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    main = tmp_path / "infrastructure/terraform/main.tf"
+    main.write_text(
+        main.read_text(encoding="utf-8").replace(
+            "compartment_ocid = var.compartment_ocid",
+            "compartment_ocid = var.tenancy_ocid",
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+    result = kinds(policy, tmp_path)
+
+    assert "network-not-using-compartment" in result
+    assert "workload-uses-tenancy" in result

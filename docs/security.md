@@ -81,6 +81,8 @@ Containers de aplicação devem executar com usuário não root sempre que poss�
 
 O Terraform OCI libera SSH apenas para `admin_cidr`. O tráfego HTTP público entra somente pelo NSG do Load Balancer na porta 80; a VM recebe 8080 apenas a partir do NSG do Load Balancer. HTTP/HTTPS direto na VM e portas 3000, 8000 ou 8080 públicas não devem existir.
 
+O workload OCI deve usar o compartment filho dedicado `edudocs-ai-prod`. Usar a tenancy/root como `compartment_ocid` é proibido por validação Terraform e por auditoria estática/JSON do plan.
+
 ## 18. SSH restrito
 
 Acesso SSH à instância OCI deve ser limitado por chave, usuário apropriado e origem controlada. Senhas de SSH não devem ser usadas.
@@ -95,7 +97,7 @@ Dependências, imagens e pacotes do sistema devem receber atualizações compat�
 
 ## 21. CI e segredos
 
-Os workflows de CI usam `permissions: contents: read`, providers `fake` e não recebem `GROQ_API_KEY`. A verificação `scripts/check_repository_hygiene.py` bloqueia arquivos sensíveis versionados, state/plans Terraform, chaves privadas, tokens comuns e valores reais de `GROQ_API_KEY` sem imprimir o segredo detectado.
+Os workflows de CI usam `permissions: contents: read`, providers `fake` e não recebem `GROQ_API_KEY`. Eles validam Terraform com `init -backend=false` e não executam `plan`, `apply` ou `destroy`. A verificação `scripts/check_repository_hygiene.py` bloqueia arquivos sensíveis versionados, state/plans Terraform, chaves privadas, tokens comuns e valores reais de `GROQ_API_KEY` sem imprimir o segredo detectado.
 
 Somente `publish-images.yml` usa `packages: write`, e apenas em execução manual sobre `main`. O login no GHCR usa `secrets.GITHUB_TOKEN` pela action oficial de login; nenhum PAT é necessário.
 

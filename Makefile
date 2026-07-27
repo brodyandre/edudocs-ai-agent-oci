@@ -1,4 +1,4 @@
-.PHONY: setup quality corpus index lint test evaluate web-build compose-check terraform-fmt terraform-init terraform-validate terraform-policy runtime-bootstrap-check terraform-check oci-readiness terraform-plan-check container-release-check container-release-manifest-check images-inspect images-smoke build up down restart ps logs smoke docker-ci project-audit readme-evidence pre-terraform ci clean
+.PHONY: setup quality corpus index lint test evaluate web-build compose-check terraform-fmt terraform-init terraform-validate terraform-policy runtime-bootstrap-check terraform-check oci-readiness terraform-plan-check compartment-bootstrap-fmt compartment-bootstrap-init compartment-bootstrap-validate compartment-bootstrap-policy compartment-bootstrap-check compartment-bootstrap-plan-check container-release-check container-release-manifest-check images-inspect images-smoke build up down restart ps logs smoke docker-ci project-audit readme-evidence pre-terraform ci clean
 
 PYTHON ?= python3
 VENV_PYTHON ?= .venv/bin/python
@@ -10,6 +10,10 @@ EVALUATION_MARKDOWN ?= /tmp/edudocs-evaluation.md
 CONTAINER_RELEASE_MANIFEST ?=
 OCI_PROFILE ?= EDUDOCS
 TERRAFORM_PLAN_JSON ?=
+TERRAFORM_TFVARS ?=
+COMPARTMENT_TERRAFORM_DIR ?= infrastructure/terraform-bootstrap/compartment
+COMPARTMENT_PLAN_JSON ?=
+COMPARTMENT_TFVARS ?=
 
 setup:
 	$(PYTHON) -m venv .venv
@@ -65,11 +69,31 @@ runtime-bootstrap-check:
 terraform-check: terraform-fmt terraform-init terraform-validate terraform-policy runtime-bootstrap-check
 
 oci-readiness:
-	. "$$HOME/.config/edudocs/oci.env"; $(PYTHON) scripts/check_oci_readiness.py --profile $(OCI_PROFILE)
+	. "$$HOME/.config/edudocs/oci.env"; $(PYTHON) scripts/check_oci_readiness.py --profile $(OCI_PROFILE) --compartment-name edudocs-ai-prod
 
 terraform-plan-check:
 	test -n "$(TERRAFORM_PLAN_JSON)"
-	$(PYTHON) scripts/check_terraform_plan.py "$(TERRAFORM_PLAN_JSON)"
+	$(PYTHON) scripts/check_terraform_plan.py "$(TERRAFORM_PLAN_JSON)" $(if $(TERRAFORM_TFVARS),--tfvars $(TERRAFORM_TFVARS),)
+
+compartment-bootstrap-fmt:
+	terraform -chdir=$(COMPARTMENT_TERRAFORM_DIR) fmt -recursive -check
+
+compartment-bootstrap-init:
+	terraform -chdir=$(COMPARTMENT_TERRAFORM_DIR) init -backend=false
+
+compartment-bootstrap-validate:
+	terraform -chdir=$(COMPARTMENT_TERRAFORM_DIR) validate
+
+compartment-bootstrap-policy:
+	$(PYTHON) scripts/check_compartment_bootstrap_policy.py
+
+compartment-bootstrap-check: compartment-bootstrap-fmt compartment-bootstrap-init compartment-bootstrap-validate compartment-bootstrap-policy
+	$(VENV_PYTHON) -m pytest apps/api/tests/test_compartment_bootstrap.py
+
+compartment-bootstrap-plan-check:
+	test -n "$(COMPARTMENT_PLAN_JSON)"
+	test -n "$(COMPARTMENT_TFVARS)"
+	$(PYTHON) scripts/check_compartment_bootstrap_plan.py --plan-json "$(COMPARTMENT_PLAN_JSON)" --tfvars "$(COMPARTMENT_TFVARS)"
 
 container-release-check:
 	$(PYTHON) scripts/check_container_publish_policy.py
@@ -139,7 +163,7 @@ pre-terraform:
 	$(PYTHON) scripts/check_utf8.py
 	git diff --check
 
-ci: quality corpus lint test evaluate web-build terraform-check container-release-check
+ci: quality corpus lint test evaluate web-build compartment-bootstrap-check terraform-check container-release-check
 
 clean:
 	$(PYTHON) -c "import pathlib, shutil; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__') if p.is_dir()]; [shutil.rmtree(p, ignore_errors=True) for p in map(pathlib.Path, ['.pytest_cache', '.ruff_cache', 'apps/web/.next'])]"

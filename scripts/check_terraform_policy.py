@@ -20,6 +20,7 @@ REQUIRED_FILES = {
     "infrastructure/terraform/versions.tf",
     "infrastructure/terraform/providers.tf",
     "infrastructure/terraform/data.tf",
+    "infrastructure/terraform/checks.tf",
     "infrastructure/terraform/locals.tf",
     "infrastructure/terraform/main.tf",
     "infrastructure/terraform/variables.tf",
@@ -64,6 +65,12 @@ FORBIDDEN_VERSIONED_SUFFIXES = {
     ".tfplan",
     ".pem",
     ".key",
+}
+OCI_COMPARTMENT_PREFIX = "ocid1." + "compartment.oc1."
+OCI_PLACEHOLDERS = {
+    "ocid1." + "tenancy.oc1..substitua",
+    "ocid1." + "compartment.oc1..substitua",
+    "ocid1." + "image.oc1..substitua",
 }
 
 
@@ -155,6 +162,28 @@ def resource_blocks(root: Path) -> list[tuple[str, str, str, str]]:
                 )
             )
     return blocks
+
+
+def named_block(text: str, block_type: str, name: str) -> str | None:
+    pattern = re.compile(
+        rf'{re.escape(block_type)}\s+"{re.escape(name)}"\s*\{{',
+        flags=re.DOTALL,
+    )
+    match = pattern.search(text)
+    if not match:
+        return None
+    depth = 0
+    end = match.end()
+    for index in range(match.end() - 1, len(text)):
+        char = text[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                end = index + 1
+                break
+    return text[match.start() : end]
 
 
 def find_required_files(root: Path) -> list[Finding]:
@@ -482,6 +511,134 @@ def find_limit_risks(root: Path) -> list[Finding]:
                 relative(variables, root),
                 "lb-max-bandwidth-validation",
                 "Load Balancer deve validar maximo exatamente 10 Mbps.",
+            )
+        )
+    return findings
+
+
+def find_root_compartment_risks(root: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    variables = root / "infrastructure" / "terraform" / "variables.tf"
+    checks = root / "infrastructure" / "terraform" / "checks.tf"
+    example = root / "infrastructure" / "terraform" / "terraform.tfvars.example"
+    all_tf = terraform_joined_text(root)
+
+    if variables.is_file():
+        text = read_text(variables)
+        if "ocid1\\\\.(compartment|tenancy)" in text or "ocid1\\.(compartment|tenancy)" in text:
+            findings.append(
+                Finding(
+                    relative(variables, root),
+                    "compartment-allows-tenancy",
+                    "compartment_ocid nao pode aceitar tenancy/root.",
+                )
+            )
+        block_match = re.search(
+            r'variable\s+"compartment_ocid"\s+\{(?P<body>.*?)(?=\nvariable\s+"|\Z)',
+            text,
+            flags=re.DOTALL,
+        )
+        block = block_match.group("body") if block_match else ""
+        if "ocid1\\\\.compartment\\\\.oc1" not in block and "ocid1\\.compartment\\.oc1" not in block:
+            findings.append(
+                Finding(
+                    relative(variables, root),
+                    "compartment-validation",
+                    "compartment_ocid deve validar OCID de compartment.",
+                )
+            )
+        if re.search(
+            r"root.*pode ser usado|tenancy.*pode ser usada|root.*aprovado",
+            block,
+            flags=re.IGNORECASE,
+        ):
+            findings.append(
+                Finding(
+                    relative(variables, root),
+                    "root-authorized-description",
+                    "Descricao de compartment_ocid nao pode autorizar root.",
+                )
+            )
+
+    if not checks.is_file():
+        findings.append(
+            Finding(
+                "infrastructure/terraform/checks.tf",
+                "missing-dedicated-compartment-check",
+                "checks.tf deve impedir root compartment no workload.",
+            )
+        )
+    else:
+        text = read_text(checks)
+        required = {
+            "var.compartment_ocid != var.tenancy_ocid": "check-root-difference",
+            'regex("^ocid1\\\\.compartment\\\\.oc1\\\\.", var.compartment_ocid)': "check-compartment-ocid",
+            'var.environment == "production"': "check-production",
+        }
+        for needle, kind in required.items():
+            if needle not in text:
+                findings.append(
+                    Finding(
+                        relative(checks, root),
+                        kind,
+                        "Check dedicado do compartment esta incompleto.",
+                    )
+                )
+
+    if example.is_file():
+        text = read_text(example)
+        match = re.search(r'(?m)^\s*compartment_ocid\s*=\s*"([^"]+)"', text)
+        if match and not match.group(1).startswith(OCI_COMPARTMENT_PREFIX):
+            findings.append(
+                Finding(
+                    relative(example, root),
+                    "example-root-compartment",
+                    "Exemplo principal deve usar placeholder de compartment, nao tenancy.",
+                )
+            )
+        if "root e proibido" not in text and "root compartment" not in text:
+            findings.append(
+                Finding(
+                    relative(example, root),
+                    "example-root-warning",
+                    "Exemplo deve documentar que root e proibido para workload.",
+                )
+            )
+
+    forbidden_escape_hatches = (
+        "allow_root_compartment",
+        "use_root_compartment",
+        "skip_compartment_validation",
+    )
+    for token in forbidden_escape_hatches:
+        if token in all_tf:
+            findings.append(
+                Finding(
+                    "infrastructure/terraform",
+                    "root-escape-hatch",
+                    f"Variavel/escape hatch proibido: {token}.",
+                )
+            )
+
+    workload_modules = ("network", "compute", "load_balancer", "object_storage")
+    root_main = root / "infrastructure" / "terraform" / "main.tf"
+    main_text = read_text(root_main) if root_main.is_file() else ""
+    for name in workload_modules:
+        block = named_block(main_text, "module", name)
+        if block and not re.search(r"compartment_ocid\s*=\s*var\.compartment_ocid", block):
+            findings.append(
+                Finding(
+                    relative(root_main, root),
+                    f"{name}-not-using-compartment",
+                    "Modulo de workload deve receber var.compartment_ocid.",
+                )
+            )
+    if re.search(r"compartment_ocid\s*=\s*var\.tenancy_ocid", main_text):
+        findings.append(
+            Finding(
+                relative(root_main, root),
+                "workload-uses-tenancy",
+                "Modulo de workload nao pode receber var.tenancy_ocid.",
             )
         )
     return findings
@@ -944,13 +1101,8 @@ def find_example_risks(root: Path) -> list[Finding]:
                 "Exemplo nao pode sugerir admin_cidr publico.",
             )
         )
-    allowed_ocids = {
-        "ocid1.tenancy.oc1..substitua",
-        "ocid1.compartment.oc1..substitua",
-        "ocid1.image.oc1..substitua",
-    }
     for ocid in re.findall(r"ocid1\.[A-Za-z0-9_.-]+", text):
-        if ocid not in allowed_ocids:
+        if ocid not in OCI_PLACEHOLDERS:
             findings.append(
                 Finding(
                     relative(example, root),
@@ -968,6 +1120,7 @@ def collect_findings(root: Path = ROOT) -> list[Finding]:
     findings.extend(find_workflow_risks(root))
     findings.extend(find_provider_and_secret_risks(root))
     findings.extend(find_limit_risks(root))
+    findings.extend(find_root_compartment_risks(root))
     findings.extend(find_load_balancer_risks(root))
     findings.extend(find_network_and_cost_risks(root))
     findings.extend(find_cloud_init_risks(root))

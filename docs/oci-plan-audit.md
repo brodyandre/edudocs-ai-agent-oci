@@ -1,6 +1,8 @@
 # Auditoria Do Plan OCI
 
-Data da auditoria: 2026-07-27.
+Data da auditoria histórica: 2026-07-27.
+
+> Nota da Entrega 10C: este plan foi gerado antes da criação do compartment dedicado. A política atual proíbe o root compartment como alvo do workload. Depois do bootstrap de `edudocs-ai-prod`, o plan principal deve ser regenerado e auditado novamente sem `apply`.
 
 ## Escopo
 
@@ -20,7 +22,8 @@ Arquivos locais usados e ignorados pelo Git:
 - Home region: `sa-saopaulo-1`.
 - Região assinada: `READY`.
 - Availability domain: `SA-SAOPAULO-1-AD-1`.
-- Compartment alvo: root compartment da tenancy, pois não foram retornados compartments filhos ativos.
+- Compartment alvo histórico: root compartment da tenancy, pois ainda não havia compartment filho ativo.
+- Estado atual esperado: novo plan do workload deve apontar para o compartment filho dedicado `edudocs-ai-prod`.
 - CIDR administrativo: IPv4 público em `/32`, mantido mascarado.
 - Chave SSH da VM: `~/.ssh/edudocs_oci_ed25519.pub`.
 - Imagens GHCR: referências imutáveis por digest, validadas pelo manifesto de release.
@@ -75,4 +78,4 @@ Recursos planejados para criação:
 
 ## Estado Após Auditoria
 
-Nenhum recurso OCI foi criado nesta etapa. O próximo passo permitido é revisar capacidade A1, elegibilidade Always Free do Load Balancer, estratégia de state e então decidir explicitamente sobre um `terraform apply` futuro.
+Nenhum recurso OCI foi criado nesta auditoria histórica. Na Entrega 10C, o próximo passo permitido é validar e aplicar somente o plan salvo da pilha bootstrap do compartment; o workload principal deve receber um novo plan auditado e continua sem `apply`.

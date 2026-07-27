@@ -18,6 +18,7 @@ from typing import Any
 
 EXPECTED_REGION = "sa-saopaulo-1"
 DEFAULT_SSH_PUBLIC_KEY = Path.home() / ".ssh" / "edudocs_oci_ed25519.pub"
+OCI_COMPARTMENT_PREFIX = "ocid1." + "compartment.oc1."
 
 
 @dataclass(frozen=True)
@@ -135,7 +136,64 @@ def oci_json(profile: str, args: list[str]) -> dict[str, Any]:
     return json.loads(completed.stdout)
 
 
-def collect_findings(profile: str, ssh_public_key: Path) -> tuple[list[Finding], dict[str, Any]]:
+def validate_target_compartment(
+    compartments: list[dict[str, Any]], tenancy: str, compartment_name: str
+) -> tuple[list[Finding], dict[str, Any]]:
+    findings: list[Finding] = []
+    summary: dict[str, Any] = {}
+    matches = [item for item in compartments if item.get("name") == compartment_name]
+
+    summary["target_compartment"] = compartment_name
+    summary["target_compartment_matches"] = len(matches)
+
+    if len(matches) != 1:
+        findings.append(
+            Finding(
+                "oci:compartment",
+                "target-compartment-count",
+                f"Deve existir exatamente um compartment chamado {compartment_name}.",
+            )
+        )
+        return findings, summary
+
+    target = matches[0]
+    lifecycle_state = target.get("lifecycle-state", "")
+    target_ocid = target.get("id", "")
+    parent_ocid = target.get("compartment-id", "")
+    summary["target_compartment_state"] = lifecycle_state
+    summary["target_compartment_ocid"] = mask_ocid(target_ocid)
+    summary["target_compartment_parent"] = "tenancy" if parent_ocid == tenancy else "outro"
+
+    if lifecycle_state != "ACTIVE":
+        findings.append(
+            Finding(
+                "oci:compartment",
+                "target-compartment-not-active",
+                "Compartment alvo deve estar ACTIVE antes do plan do workload.",
+            )
+        )
+    if target_ocid == tenancy or not target_ocid.startswith(OCI_COMPARTMENT_PREFIX):
+        findings.append(
+            Finding(
+                "oci:compartment",
+                "target-compartment-root",
+                "Workload deve usar compartment filho dedicado, nunca root/tenancy.",
+            )
+        )
+    if parent_ocid != tenancy:
+        findings.append(
+            Finding(
+                "oci:compartment",
+                "target-compartment-parent",
+                "Compartment alvo deve ser filho direto da tenancy validada.",
+            )
+        )
+    return findings, summary
+
+
+def collect_findings(
+    profile: str, ssh_public_key: Path, compartment_name: str
+) -> tuple[list[Finding], dict[str, Any]]:
     findings: list[Finding] = []
     summary: dict[str, Any] = {"profile": profile}
 
@@ -227,15 +285,17 @@ def collect_findings(profile: str, ssh_public_key: Path) -> tuple[list[Finding],
                 "--all",
             ],
         ).get("data", [])
-        active_compartments = [
-            item for item in compartments if item.get("lifecycle-state") == "ACTIVE"
-        ]
-        summary["active_compartments"] = [
-            item.get("name", "") for item in active_compartments
-        ]
-        summary["target_compartment"] = (
-            "root tenancy compartment" if not active_compartments else "child compartment"
+        active_compartments = sorted(
+            item.get("name", "")
+            for item in compartments
+            if item.get("lifecycle-state") == "ACTIVE"
         )
+        summary["active_compartments"] = active_compartments
+        compartment_findings, compartment_summary = validate_target_compartment(
+            compartments, tenancy, compartment_name
+        )
+        findings.extend(compartment_findings)
+        summary.update(compartment_summary)
     except (subprocess.CalledProcessError, json.JSONDecodeError) as exc:
         findings.append(
             Finding(
@@ -268,6 +328,10 @@ def print_summary(summary: dict[str, Any]) -> None:
         "availability_domains",
         "active_compartments",
         "target_compartment",
+        "target_compartment_matches",
+        "target_compartment_state",
+        "target_compartment_ocid",
+        "target_compartment_parent",
     ):
         if key in summary:
             value = summary[key]
@@ -284,18 +348,21 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         type=Path,
         default=DEFAULT_SSH_PUBLIC_KEY,
     )
+    parser.add_argument("--compartment-name", default="edudocs-ai-prod")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    findings, summary = collect_findings(args.profile, args.ssh_public_key.expanduser())
+    findings, summary = collect_findings(
+        args.profile, args.ssh_public_key.expanduser(), args.compartment_name
+    )
     print_summary(summary)
     if findings:
         for finding in findings:
             print(f"{finding.path}: {finding.kind}: {finding.message}")
         return 1
-    print("OK: readiness OCI validada sem expor segredos.")
+    print("READY_FOR_PLAN: readiness OCI validada sem expor segredos.")
     return 0
 
 

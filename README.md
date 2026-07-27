@@ -408,17 +408,19 @@ Concluído:
 - Compose de produção usando referências imutáveis por digest.
 - Scripts e políticas para manifesto de release, pull anônimo e smoke pós-publicação.
 - Terraform OCI com módulos de rede, compute, load balancer e object storage opcional.
+- Stack bootstrap independente para criar somente o compartment filho `edudocs-ai-prod`, com state local separado fora do repositório.
 - OCI Flexible Load Balancer declarado com backend set, backend privado, listener HTTP 80 e health check `/health`.
 - Dois NSGs separados: Load Balancer público em 80 e aplicação privada em 8080 a partir do NSG do Load Balancer.
 - Outputs para endpoint futuro `http://<load_balancer_public_ip>` e health URL.
 - Cloud-init com bootstrap declarativo da aplicação via systemd, Docker Compose, Nginx 8080 e imagens GHCR por digest.
-- Readiness OCI validada com perfil `EDUDOCS`, home region `sa-saopaulo-1` e root compartment da tenancy como alvo aprovado.
+- Readiness OCI ajustada para exigir o compartment filho dedicado `edudocs-ai-prod`; o root compartment da tenancy é proibido para workload.
 - Primeiro `terraform plan` real gerado e auditado em JSON, sem `apply`.
 - Validações Terraform, política de custo e CI sem credenciais.
 
 Próximo:
 
-- Provisionar OCI somente após revisão do plano.
+- Criar o compartment dedicado somente após CI verde, revisão do plan bootstrap salvo e aprovação explícita.
+- Gerar novo plan do workload principal apontando para `edudocs-ai-prod`; não aplicar o workload nesta etapa.
 - Usar os digests GHCR validados em `terraform.tfvars` local para iniciar a aplicação na VM durante o primeiro apply aprovado.
 - Obter IP real do Load Balancer após apply.
 - Validar Groq real fora do ambiente de teste.
@@ -429,7 +431,7 @@ Próximo:
 
 ## Infraestrutura OCI
 
-A OCI possui código Terraform criado em `infrastructure/terraform`, com módulos de rede, compute, load balancer, object storage opcional e cloud-init em `infrastructure/cloud-init/app-server.yaml.tftpl`. O cloud-init renderiza Compose produtivo, `runtime.env` não secreto, Nginx 8080 e unidade systemd para iniciar API/Web por imagens GHCR imutáveis. O primeiro `terraform plan` real foi gerado e auditado em 2026-07-27, mas não houve `apply`, `destroy` ou deploy ativo.
+A OCI possui duas frentes Terraform: o bootstrap independente em `infrastructure/terraform-bootstrap/compartment`, responsável apenas por criar o compartment filho `edudocs-ai-prod`, e o workload principal em `infrastructure/terraform`, com módulos de rede, compute, load balancer, object storage opcional e cloud-init em `infrastructure/cloud-init/app-server.yaml.tftpl`. O cloud-init renderiza Compose produtivo, `runtime.env` não secreto, Nginx 8080 e unidade systemd para iniciar API/Web por imagens GHCR imutáveis. O primeiro `terraform plan` real do workload foi gerado e auditado em 2026-07-27, mas não houve `apply`, `destroy` ou deploy ativo.
 
 O acesso público futuro será exclusivamente pelo OCI Flexible Load Balancer:
 
@@ -439,11 +441,12 @@ Usuário -> OCI Flexible Load Balancer -> VM Ampere A1 -> Nginx -> Next.js/FastA
 
 O endpoint futuro será conhecido somente após apply real e terá o formato `http://<load_balancer_public_ip>`. Uma URL nominal exigirá DNS posteriormente.
 
-O código pode ser criado e validado sem credenciais reais. Para o plan real auditado, foram confirmados perfil OCI `EDUDOCS`, home region `sa-saopaulo-1`, CIDR administrativo público em `/32`, chave SSH da VM e root compartment da tenancy como alvo. Capacidade A1, elegibilidade Always Free final e estratégia de state ainda devem ser revisadas imediatamente antes de qualquer `apply`.
+O código pode ser criado e validado sem credenciais reais. O Prompt 09 pode criar e validar código Terraform sem credenciais reais. Credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state devem ser confirmados antes do primeiro `terraform plan` real e antes de qualquer `apply`. A partir da Entrega 10C, o workload principal deve usar um compartment filho dedicado; root/tenancy não é alvo permitido.
 
 Documentação relacionada:
 
 - [Terraform OCI](infrastructure/terraform/README.md)
+- [Bootstrap do compartment OCI](docs/oci-compartment-bootstrap.md)
 - [Deployment OCI](docs/deployment-oci.md)
 - [Auditoria do plan OCI](docs/oci-plan-audit.md)
 - [Controles de custo](docs/cost-controls.md)
@@ -489,22 +492,26 @@ Documentação relacionada:
 - O histórico não é persistido entre sessões.
 - O provedor Groq real ainda não foi validado nesta etapa.
 - A OCI ainda não foi implantada; o código Terraform, incluindo Load Balancer e bootstrap declarativo da aplicação, foi criado, validado e revisado em plan real sem apply.
+- O compartment dedicado ainda depende de plan bootstrap salvo, aprovação explícita e apply restrito à pilha `terraform-bootstrap/compartment`.
 - As métricas `fact_coverage_rate`, `complete_document_citation_rate` e `page_recall_at_k` indicam pontos reais de melhoria.
 
 [Voltar ao índice](#índice)
 
 ## Roadmap
 
-1. Revisar novamente capacidade A1, elegibilidade do OCI Flexible Load Balancer 10 Mbps e state antes de qualquer apply.
-2. Provisionar OCI somente após aprovação explícita do plano auditado.
-3. Confirmar saída do cloud-init e health pelo Load Balancer.
-4. Obter IP real do Load Balancer após apply.
-5. Manter imagens API/Web multiarch no GHCR e validar pull anônimo por digest.
-6. Publicar a aplicação em Compute ARM64 usando digests imutáveis somente após apply aprovado.
-7. Validar `http://<load_balancer_public_ip>` e depois configurar DNS.
-8. Configurar domínio, HTTPS e variáveis seguras.
-9. Produzir capturas reais de aplicação e infraestrutura.
-10. Reavaliar recuperação, cobertura factual e citações multi-documento.
+1. Validar e aprovar o plan bootstrap que cria somente `edudocs-ai-prod`.
+2. Aplicar apenas o plan salvo do bootstrap e aguardar o compartment ficar `ACTIVE`.
+3. Gerar novo plan do workload principal apontando para o compartment filho; não aplicar o workload nesta etapa.
+4. Revisar novamente capacidade A1, elegibilidade do OCI Flexible Load Balancer 10 Mbps e state antes de qualquer apply de workload.
+5. Provisionar OCI somente após aprovação explícita do plano auditado do workload.
+6. Confirmar saída do cloud-init e health pelo Load Balancer.
+7. Obter IP real do Load Balancer após apply.
+8. Manter imagens API/Web multiarch no GHCR e validar pull anônimo por digest.
+9. Publicar a aplicação em Compute ARM64 usando digests imutáveis somente após apply aprovado.
+10. Validar `http://<load_balancer_public_ip>` e depois configurar DNS.
+11. Configurar domínio, HTTPS e variáveis seguras.
+12. Produzir capturas reais de aplicação e infraestrutura.
+13. Reavaliar recuperação, cobertura factual e citações multi-documento.
 
 [Voltar ao índice](#índice)
 
