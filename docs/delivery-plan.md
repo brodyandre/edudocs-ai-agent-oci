@@ -16,7 +16,7 @@
 | Exemplos de respostas | Pendente | Respostas com citações e recusas quando necessário. |
 | Agente funcional | Pendente | Fluxo RAG executável com provedor real e falso. |
 | Leitura e processamento de PDF | Pendente | Ingestão local validada com metadados e índice. |
-| Terraform OCI | Concluído | Código validável sem credenciais reais, bootstrap de compartment dedicado e plan real auditável sem `apply` do workload. |
+| Terraform OCI | Concluído | Código validável sem credenciais reais, compartment dedicado criado por bootstrap e plan real auditado sem `apply` do workload. |
 | Load Balancer OCI | Concluído no plan | Flexible Load Balancer 10 Mbps, backend set, backend privado e listener HTTP declarados e revisados no plan. |
 | Deploy OCI | Pendente | Infraestrutura aplicada e aplicação disponível. |
 | Link público | Pendente | URL pública real após deploy. |
@@ -33,7 +33,7 @@
 - Testes: usar provedor falso determinístico e evitar consumo externo nos testes.
 - Interface: criar fluxo simples para perguntar e visualizar resposta com fontes.
 - Execução local: validar Docker Compose.
-- Deploy: criar compartment dedicado por bootstrap aprovado, aprovar plan do workload, provisionar OCI com Terraform, iniciar Nginx na VM via cloud-init e validar via Load Balancer.
+- Deploy: aprovar plan do workload, provisionar OCI com Terraform, iniciar Nginx na VM via cloud-init e validar via Load Balancer.
 - Evidências: registrar comandos, exemplos, link público e captura de tela final.
 
 ## Definição de pronto

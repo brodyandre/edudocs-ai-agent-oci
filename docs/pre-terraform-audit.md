@@ -1,21 +1,19 @@
 # Auditoria Terraform do EduDocs AI
 
-Gerado em `2026-07-27T15:12:37Z`.
-
-> Nota histórica: esta auditoria registra o estado anterior ao primeiro plan real. O plan OCI foi executado e revisado posteriormente em 2026-07-27. Consulte `docs/oci-plan-audit.md` para o estado atual.
+Gerado em `2026-07-27T18:25:18Z`.
 
 ## 1. Resumo executivo
 
-Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose, Terraform OCI validavel e GitHub Actions registrados em fatos automatizados.
+Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose, Terraform OCI validavel, bootstrap de compartment dedicado e GitHub Actions registrados em fatos automatizados.
 
-Pendente no momento desta auditoria historica: credenciais OCI, primeiro `terraform plan` real, qualquer `apply`, deploy da aplicacao, dominio, HTTPS e evidencias OCI reais.
+Pendente: apply do workload principal, deploy da aplicacao, endpoint publico, dominio, HTTPS e evidencias OCI reais.
 
 ## 2. Baseline Git
 
 - Branch: `main`
-- HEAD: `03f0a59c5b9d25f4e3672bb129e1981623b7f504`
-- Ultimo commit: `feat(infra): adiciona load balancer Always Free à arquitetura OCI`
-- Data do ultimo commit: `2026-07-23T17:14:29-03:00`
+- HEAD: `f4ac0b1c58f16a7e6627f70c5498b9efb89dedcd`
+- Ultimo commit: `feat(infra): adiciona bootstrap do compartment OCI`
+- Data do ultimo commit: `2026-07-27T15:09:26-03:00`
 - Sincronismo `main...origin/main`: `0	0`
 - Workspace limpo: `True`
 - Repositorio: `https://github.com/brodyandre/edudocs-ai-agent-oci`
@@ -31,7 +29,7 @@ Pendente no momento desta auditoria historica: credenciais OCI, primeiro `terraf
 ## 4. Testes
 
 - Testes Web nesta auditoria: 55.
-- Testes API nesta auditoria: 152.
+- Testes API nesta auditoria: 188.
 
 ## 5. Avaliacao RAG
 
@@ -108,18 +106,27 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - Terraform fmt: `True`.
 - Terraform validate: `True`.
 - Politica Terraform: `True`.
-- Historico: credenciais OCI, root compartment, home region e CIDR administrativo foram validados depois desta auditoria.
-- Historico: o primeiro `terraform plan` real foi executado e aprovado por auditoria JSON depois desta auditoria.
-- Futuro: revisar disponibilidade A1, elegibilidade do Load Balancer 10/10 Mbps e estrategia de state antes de qualquer apply.
-- Nao aplicavel nesta auditoria historica: `apply` ou `destroy`.
+- Bootstrap do compartment: `{'present': True, 'single_resource_scope': True, 'policy_ok': True, 'planned_resource': 'oci_identity_compartment', 'compartment_name': 'edudocs-ai-prod', 'state_outside_repository': True, 'apply_executed': True, 'apply_scope': 'bootstrap-compartment-only'}`.
+- Compartment dedicado: `{'name': 'edudocs-ai-prod', 'created': True, 'lifecycle_state': 'ACTIVE', 'parent': 'tenancy', 'ocid_masked': True}`.
+- Controles contra root compartment: `{'root_target_prohibited': True, 'requires_compartment_ocid': True, 'terraform_plan_uses_child_compartment': True, 'root_compartment_hits_in_plan': 0}`.
+- Credenciais OCI validadas: `True`.
+- Home region validada: `True`.
+- CIDR administrativo definido: `True`.
+- State externo aplicado ao bootstrap: `True`.
+- Plan do workload executado: `True`.
+- Apply do bootstrap executado: `True`.
+- Apply do workload executado: `False`.
+- Endpoint publico disponivel: `False`.
+- Futuro: validar disponibilidade A1 e elegibilidade final do Load Balancer 10/10 Mbps antes de qualquer apply de workload.
 
-## 12. Checklist historico de aprovacao antes do primeiro plan real
+## 12. Checklist de aprovacao antes do apply do workload
 
-- [ ] Credenciais OCI configuradas fora do Git.
-- [ ] Compartment validado.
-- [ ] Regiao, capacidade A1 e elegibilidade do Load Balancer 10/10 Mbps verificadas.
-- [ ] CIDR administrativo definido.
-- [ ] Estrategia de state definida.
+- [x] Credenciais OCI configuradas fora do Git.
+- [x] Compartment dedicado criado e validado.
+- [x] Regiao e CIDR administrativo verificados.
+- [x] Plan do workload gerado e auditado sem apply.
+- [ ] Capacidade A1 e elegibilidade do Load Balancer 10/10 Mbps verificadas imediatamente antes do apply do workload.
+- [ ] Estrategia de state do workload definida.
 - [ ] Evidencias locais atualizadas quando disponiveis.
 
 ## 13. Comando para reproduzir a auditoria

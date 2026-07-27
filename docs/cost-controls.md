@@ -69,6 +69,6 @@ O script `scripts/check_terraform_policy.py` bloqueia padrões de risco como:
 
 O primeiro `terraform plan` real foi salvo fora do Git e auditado por `scripts/check_terraform_plan.py`. O plan propõe somente creates permitidos para VCN, subnet, NSGs, uma VM A1 Flex, um Flexible Load Balancer 10/10 Mbps e componentes associados. Ele não executa `apply`, não cria recursos e não comprova disponibilidade final de Free Tier.
 
-Na Entrega 10C, a criação do compartment fica isolada em `infrastructure/terraform-bootstrap/compartment` e deve gerar exatamente um recurso `oci_identity_compartment`. O novo plan do workload deve apontar todos os recursos para o compartment filho dedicado e não deve ser aplicado nesta etapa.
+Na Entrega 10C, a criação do compartment ficou isolada em `infrastructure/terraform-bootstrap/compartment` e gerou exatamente um recurso `oci_identity_compartment`. O novo plan do workload apontou todos os recursos para o compartment filho dedicado e não foi aplicado nesta etapa.
 
 Arquivos `terraform.tfvars`, `*.tfstate`, `*.tfplan` e `tfplan` não devem ser versionados. O arquivo `.terraform.lock.hcl` deve ser versionado para fixar o provedor validado.

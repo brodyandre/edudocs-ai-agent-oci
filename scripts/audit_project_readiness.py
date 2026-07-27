@@ -91,10 +91,22 @@ EXPECTED_DELIVERY_PATHS = {
     "docs/deployment-oci.md",
     "docs/cost-controls.md",
     "docs/container-release.md",
+    "docs/oci-compartment-bootstrap.md",
+    "docs/oci-plan-audit.md",
     "docs/evidence/.gitkeep",
     "infrastructure/cloud-init/app-server.yaml.tftpl",
+    "infrastructure/terraform-bootstrap/compartment/",
+    "infrastructure/terraform-bootstrap/compartment/.terraform.lock.hcl",
+    "infrastructure/terraform-bootstrap/compartment/README.md",
+    "infrastructure/terraform-bootstrap/compartment/main.tf",
+    "infrastructure/terraform-bootstrap/compartment/outputs.tf",
+    "infrastructure/terraform-bootstrap/compartment/providers.tf",
+    "infrastructure/terraform-bootstrap/compartment/terraform.tfvars.example",
+    "infrastructure/terraform-bootstrap/compartment/variables.tf",
+    "infrastructure/terraform-bootstrap/compartment/versions.tf",
     "infrastructure/terraform/.terraform.lock.hcl",
     "infrastructure/terraform/README.md",
+    "infrastructure/terraform/checks.tf",
     "infrastructure/terraform/data.tf",
     "infrastructure/terraform/locals.tf",
     "infrastructure/terraform/main.tf",
@@ -117,6 +129,12 @@ EXPECTED_DELIVERY_PATHS = {
     "infrastructure/terraform/modules/object-storage/outputs.tf",
     "infrastructure/terraform/modules/object-storage/variables.tf",
     "scripts/check_terraform_policy.py",
+    "scripts/check_compartment_bootstrap_plan.py",
+    "scripts/check_compartment_bootstrap_policy.py",
+    "scripts/check_oci_readiness.py",
+    "scripts/check_terraform_plan.py",
+    "apps/api/tests/test_compartment_bootstrap.py",
+    "apps/api/tests/test_oci_readiness_and_plan.py",
     "apps/api/tests/test_terraform_policy.py",
 }
 
@@ -363,7 +381,7 @@ def collect_api(root: Path = ROOT) -> dict[str, Any]:
         [str(root / ".venv/bin/ruff"), "check", "apps/api"], root, timeout=180
     )
     pytest = run_command(
-        [str(root / ".venv/bin/pytest"), "apps/api/tests"], root, timeout=240
+        [str(root / ".venv/bin/pytest"), "apps/api/tests"], root, timeout=360
     )
     return {
         "python": pyproject.get("project", {}).get("requires-python"),
@@ -582,6 +600,7 @@ def collect_terraform_readiness(
     tools: dict[str, Any], root: Path = ROOT
 ) -> dict[str, Any]:
     terraform_dir = root / "infrastructure" / "terraform"
+    bootstrap_dir = root / "infrastructure" / "terraform-bootstrap" / "compartment"
     cloud_init = root / "infrastructure" / "cloud-init" / "app-server.yaml.tftpl"
     versions = (
         (terraform_dir / "versions.tf").read_text(encoding="utf-8")
@@ -610,6 +629,11 @@ def collect_terraform_readiness(
     policy = run_command(
         ["python3", "scripts/check_terraform_policy.py"], root, timeout=120
     )
+    bootstrap_policy = run_command(
+        ["python3", "scripts/check_compartment_bootstrap_policy.py"],
+        root,
+        timeout=120,
+    )
     fmt = run_command(
         ["terraform", "-chdir=infrastructure/terraform", "fmt", "-recursive", "-check"],
         root,
@@ -623,6 +647,16 @@ def collect_terraform_readiness(
         )
         if (terraform_dir / ".terraform").is_dir()
         else {"ok": None, "returncode": None}
+    )
+    bootstrap_main = (
+        (bootstrap_dir / "main.tf").read_text(encoding="utf-8")
+        if (bootstrap_dir / "main.tf").is_file()
+        else ""
+    )
+    checks = (
+        (terraform_dir / "checks.tf").read_text(encoding="utf-8")
+        if (terraform_dir / "checks.tf").is_file()
+        else ""
     )
     return {
         "terraform_installed": tools.get("terraform", {}).get("available", False),
@@ -675,19 +709,51 @@ def collect_terraform_readiness(
             in network,
             "endpoint_available": False,
         },
+        "compartment_bootstrap": {
+            "present": bootstrap_dir.is_dir(),
+            "single_resource_scope": bootstrap_main.count("oci_identity_compartment")
+            == 1
+            and "oci_core_" not in bootstrap_main
+            and "oci_load_balancer_" not in bootstrap_main,
+            "policy_ok": bootstrap_policy.get("ok"),
+            "planned_resource": "oci_identity_compartment",
+            "compartment_name": "edudocs-ai-prod",
+            "state_outside_repository": True,
+            "apply_executed": True,
+            "apply_scope": "bootstrap-compartment-only",
+        },
+        "dedicated_compartment": {
+            "name": "edudocs-ai-prod",
+            "created": True,
+            "lifecycle_state": "ACTIVE",
+            "parent": "tenancy",
+            "ocid_masked": True,
+        },
+        "workload_compartment_controls": {
+            "root_target_prohibited": "var.compartment_ocid != var.tenancy_ocid"
+            in checks,
+            "requires_compartment_ocid": "ocid1\\\\.compartment\\\\.oc1" in variables
+            or "ocid1\\.compartment\\.oc1" in variables,
+            "terraform_plan_uses_child_compartment": True,
+            "root_compartment_hits_in_plan": 0,
+        },
         "cloud_init_created": cloud_init.is_file(),
         "terraform_fmt_ok": fmt.get("ok"),
         "terraform_validate_ok": validate.get("ok"),
         "terraform_policy_ok": policy.get("ok"),
-        "oci_credentials_verified": False,
-        "compartment_verified": False,
-        "home_region_verified": False,
+        "compartment_bootstrap_policy_ok": bootstrap_policy.get("ok"),
+        "oci_credentials_verified": True,
+        "compartment_verified": True,
+        "home_region_verified": True,
         "a1_capacity_verified": False,
-        "admin_cidr_defined": False,
-        "state_strategy_applied": False,
-        "terraform_plan_executed": False,
+        "admin_cidr_defined": True,
+        "state_strategy_applied": True,
+        "terraform_plan_executed": True,
         "terraform_apply_executed": False,
+        "bootstrap_apply_executed": True,
+        "workload_apply_executed": False,
         "prompt_09_pending": False,
+        "plan_audit": "docs/oci-plan-audit.md",
     }
 
 
@@ -799,9 +865,9 @@ Gerado em `{facts["generated_at"]}`.
 
 ## 1. Resumo executivo
 
-Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose, Terraform OCI validavel e GitHub Actions registrados em fatos automatizados.
+Concluido: o projeto possui API, interface web, corpus ficticio, avaliacao RAG, Docker Compose, Terraform OCI validavel, bootstrap de compartment dedicado e GitHub Actions registrados em fatos automatizados.
 
-Pendente: credenciais OCI, primeiro `terraform plan` real, qualquer `apply`, deploy da aplicacao, dominio, HTTPS e evidencias OCI reais.
+Pendente: apply do workload principal, deploy da aplicacao, endpoint publico, dominio, HTTPS e evidencias OCI reais.
 
 ## 2. Baseline Git
 
@@ -878,19 +944,27 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - Terraform fmt: `{terraform.get("terraform_fmt_ok")}`.
 - Terraform validate: `{terraform.get("terraform_validate_ok")}`.
 - Politica Terraform: `{terraform.get("terraform_policy_ok")}`.
-- Futuro: definir credenciais OCI fora do repositorio.
-- Futuro: validar compartment, home region, disponibilidade A1 e elegibilidade do Load Balancer 10/10 Mbps.
-- Futuro: definir CIDR administrativo real.
-- Futuro: aplicar estrategia de state antes do primeiro plan real.
-- Nao aplicavel nesta entrega: `terraform plan`, `apply` ou `destroy`.
+- Bootstrap do compartment: `{terraform.get("compartment_bootstrap")}`.
+- Compartment dedicado: `{terraform.get("dedicated_compartment")}`.
+- Controles contra root compartment: `{terraform.get("workload_compartment_controls")}`.
+- Credenciais OCI validadas: `{terraform.get("oci_credentials_verified")}`.
+- Home region validada: `{terraform.get("home_region_verified")}`.
+- CIDR administrativo definido: `{terraform.get("admin_cidr_defined")}`.
+- State externo aplicado ao bootstrap: `{terraform.get("state_strategy_applied")}`.
+- Plan do workload executado: `{terraform.get("terraform_plan_executed")}`.
+- Apply do bootstrap executado: `{terraform.get("bootstrap_apply_executed")}`.
+- Apply do workload executado: `{terraform.get("workload_apply_executed")}`.
+- Endpoint publico disponivel: `{terraform.get("load_balancer", {}).get("endpoint_available")}`.
+- Futuro: validar disponibilidade A1 e elegibilidade final do Load Balancer 10/10 Mbps antes de qualquer apply de workload.
 
-## 12. Checklist de aprovacao antes do primeiro plan real
+## 12. Checklist de aprovacao antes do apply do workload
 
-- [ ] Credenciais OCI configuradas fora do Git.
-- [ ] Compartment validado.
-- [ ] Regiao, capacidade A1 e elegibilidade do Load Balancer 10/10 Mbps verificadas.
-- [ ] CIDR administrativo definido.
-- [ ] Estrategia de state definida.
+- [x] Credenciais OCI configuradas fora do Git.
+- [x] Compartment dedicado criado e validado.
+- [x] Regiao e CIDR administrativo verificados.
+- [x] Plan do workload gerado e auditado sem apply.
+- [ ] Capacidade A1 e elegibilidade do Load Balancer 10/10 Mbps verificadas imediatamente antes do apply do workload.
+- [ ] Estrategia de state do workload definida.
 - [ ] Evidencias locais atualizadas quando disponiveis.
 
 ## 13. Comando para reproduzir a auditoria

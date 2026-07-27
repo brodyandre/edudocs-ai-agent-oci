@@ -13,9 +13,11 @@ A pilha em `infrastructure/terraform-bootstrap/compartment` deve criar exatament
 
 Ela não cria VCN, subnet, Compute, Load Balancer, bucket, IAM policy, group, user, quota ou qualquer recurso de workload.
 
-## Estado Preparatório
+## Estado Atual
 
-O código pode ser formatado, inicializado com `-backend=false`, validado e auditado no CI sem credenciais reais. Antes de qualquer mutação na OCI, o commit do código bootstrap deve estar em `main`, enviado para o GitHub e com o workflow `Quality` verde.
+O código foi formatado, inicializado com `-backend=false`, validado e auditado no CI sem credenciais reais. O commit bootstrap `f4ac0b1` foi enviado para `main` e o workflow `Quality` passou antes de qualquer mutação OCI.
+
+Depois disso, o plan salvo do bootstrap foi auditado e aplicado. O compartment `edudocs-ai-prod` foi criado e validado como `ACTIVE`, filho direto da tenancy.
 
 O `terraform.tfvars` real desta pilha é local, ignorado pelo Git e deve permanecer com permissão restrita. O arquivo versionado `terraform.tfvars.example` contém apenas placeholders.
 
@@ -44,10 +46,10 @@ make compartment-bootstrap-plan-check \
   COMPARTMENT_TFVARS=infrastructure/terraform-bootstrap/compartment/terraform.tfvars
 ```
 
-5. Aplicar somente o plan salvo e aprovado da pilha bootstrap.
-6. Aguardar o compartment ficar `ACTIVE`.
-7. Atualizar o `terraform.tfvars` local do workload principal para usar o OCID do compartment filho.
-8. Gerar e auditar novo plan do workload principal sem executar `apply`.
+5. Aplicar somente o plan salvo e aprovado da pilha bootstrap. Concluído em 2026-07-27.
+6. Aguardar o compartment ficar `ACTIVE`. Concluído.
+7. Atualizar o `terraform.tfvars` local do workload principal para usar o OCID do compartment filho. Concluído localmente sem versionar o OCID.
+8. Gerar e auditar novo plan do workload principal sem executar `apply`. Concluído.
 
 ## Guardrails
 
@@ -61,4 +63,4 @@ make compartment-bootstrap-plan-check \
 
 O stack principal em `infrastructure/terraform` consome o compartment já existente. Ele cria os recursos de rede, Compute, Load Balancer e Object Storage opcional somente após um plan próprio, revisado e aprovado em etapa futura.
 
-Na Entrega 10C, o apply permitido é restrito ao bootstrap do compartment. O apply do workload principal permanece proibido.
+Na Entrega 10C, o apply permitido foi restrito ao bootstrap do compartment. O apply do workload principal permanece proibido.

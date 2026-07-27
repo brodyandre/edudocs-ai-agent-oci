@@ -7,7 +7,7 @@ Este documento descreve o caminho de deploy previsto para o EduDocs AI na OCI. A
 Concluído:
 
 - Terraform em `infrastructure/terraform`.
-- Stack bootstrap independente em `infrastructure/terraform-bootstrap/compartment` para criar somente `edudocs-ai-prod`.
+- Stack bootstrap independente em `infrastructure/terraform-bootstrap/compartment` aplicada para criar somente `edudocs-ai-prod`.
 - Módulos de rede, compute, load balancer e object storage opcional.
 - OCI Flexible Load Balancer público declarado com 10/10 Mbps, listener HTTP 80, backend set, backend privado 8080 e health checker `/health`.
 - Dois NSGs separados: Load Balancer público e aplicação privada.
@@ -16,15 +16,12 @@ Concluído:
 - Compose de produção preparado para usar referências imutáveis por digest e providers `fake`.
 - Validação por `terraform fmt`, `terraform init -backend=false`, `terraform validate`, política local e `scripts/check_runtime_bootstrap.py`.
 - Readiness OCI ajustada para exigir o compartment filho `edudocs-ai-prod` ativo antes do plan do workload.
-- Primeiro `terraform plan` real gerado, salvo fora do Git e auditado por `scripts/check_terraform_plan.py`.
+- Novo `terraform plan` real do workload gerado, salvo fora do Git e auditado por `scripts/check_terraform_plan.py`.
 - CI sem credenciais e sem `plan/apply/destroy`.
+- Compartment `edudocs-ai-prod` validado como `ACTIVE`.
 
 Pendente:
 
-- Commit e CI verde do bootstrap antes de qualquer mutação OCI.
-- Plan bootstrap salvo e aprovado para criar somente `edudocs-ai-prod`.
-- Apply restrito ao plan salvo do bootstrap do compartment.
-- Novo plan do workload principal apontando para o compartment filho.
 - Confirmação final de capacidade A1 antes de qualquer apply do workload.
 - Confirmação final de elegibilidade do Flexible Load Balancer 10 Mbps na tenancy antes de qualquer apply do workload.
 - Estratégia de state aprovada para operação real do workload.
@@ -33,24 +30,20 @@ Pendente:
 
 ## Fluxo Seguro Futuro
 
-1. Confirmar que o código bootstrap do compartment está em `main` e com CI verde.
-2. Gerar, auditar e aprovar o plan salvo da pilha `terraform-bootstrap/compartment`.
-3. Aplicar somente o plan salvo que cria `edudocs-ai-prod`.
-4. Aguardar `edudocs-ai-prod` ficar `ACTIVE`.
-5. Confirmar `API_IMAGE_REF` e `WEB_IMAGE_REF` por digest pelo artefato `edudocs-container-release`.
-6. Confirmar que as imagens GHCR estão públicas e aceitam pull anônimo.
-7. Manter `terraform.tfvars` local fora do Git com profile `EDUDOCS`, CIDR administrativo em `/32`, chave SSH, digests GHCR e OCID do compartment filho.
-8. Rodar `make oci-readiness`.
-9. Rodar `make terraform-check`.
-10. Gerar `terraform plan` real do workload para arquivo local em `/tmp`.
-11. Gerar JSON do plan com `terraform show -json`.
-12. Auditar com `make terraform-plan-check TERRAFORM_PLAN_JSON=/tmp/edudocs-oci.tfplan.json TERRAFORM_TFVARS=infrastructure/terraform/terraform.tfvars`.
-13. Revisar novamente capacidade A1, Free Tier, state e plano salvo.
-14. Somente após revisão e aprovação humana, considerar `terraform apply` do workload em etapa futura.
-15. Nunca usar `-auto-approve`.
-16. Durante o apply aprovado do workload, o cloud-init instala Docker, faz pull anônimo dos digests, inicia `edudocs-compose.service` e aguarda `/health`.
-17. Validar `/health` pelo Load Balancer.
-18. Abrir `http://<IP-PUBLICO-DO-LOAD-BALANCER>`.
+1. Confirmar `API_IMAGE_REF` e `WEB_IMAGE_REF` por digest pelo artefato `edudocs-container-release`.
+2. Confirmar que as imagens GHCR estão públicas e aceitam pull anônimo.
+3. Manter `terraform.tfvars` local fora do Git com profile `EDUDOCS`, CIDR administrativo em `/32`, chave SSH, digests GHCR e OCID do compartment filho.
+4. Rodar `make oci-readiness`.
+5. Rodar `make terraform-check`.
+6. Gerar `terraform plan` real do workload para arquivo local em `/tmp`.
+7. Gerar JSON do plan com `terraform show -json`.
+8. Auditar com `make terraform-plan-check TERRAFORM_PLAN_JSON=/tmp/edudocs-oci.tfplan.json TERRAFORM_TFVARS=infrastructure/terraform/terraform.tfvars`.
+9. Revisar novamente capacidade A1, Free Tier, state e plano salvo.
+10. Somente após revisão e aprovação humana, considerar `terraform apply` do workload em etapa futura.
+11. Nunca usar `-auto-approve`.
+12. Durante o apply aprovado do workload, o cloud-init instala Docker, faz pull anônimo dos digests, inicia `edudocs-compose.service` e aguarda `/health`.
+13. Validar `/health` pelo Load Balancer.
+14. Abrir `http://<IP-PUBLICO-DO-LOAD-BALANCER>`.
 
 ## Preparação Da Aplicação
 

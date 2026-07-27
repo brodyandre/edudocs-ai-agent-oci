@@ -28,6 +28,10 @@ def copy_bootstrap_stack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     policy = load_script("check_compartment_bootstrap_policy.py")
     stack = tmp_path / "infrastructure" / "terraform-bootstrap" / "compartment"
     shutil.copytree(ROOT / "infrastructure" / "terraform-bootstrap" / "compartment", stack)
+    for ignored_name in ("terraform.tfvars", "terraform.tfstate"):
+        ignored = stack / ignored_name
+        if ignored.exists():
+            ignored.unlink()
     monkeypatch.setattr(policy, "ROOT", tmp_path)
     monkeypatch.setattr(policy, "STACK", stack)
     monkeypatch.setattr(

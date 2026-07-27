@@ -69,7 +69,7 @@ make terraform-plan-check TERRAFORM_PLAN_JSON=/tmp/edudocs-oci.tfplan.json
 
 O plan foi auditado sem `apply` e sem versionar tfvars, state ou plan. Consulte [Auditoria do plan OCI](../../docs/oci-plan-audit.md).
 
-Na Entrega 10C, após a criação aprovada do compartment por bootstrap, este plan deve ser regenerado com `compartment_ocid` apontando para `edudocs-ai-prod`. O workload principal continua sem `apply` nesta etapa.
+Na Entrega 10C, após a criação aprovada do compartment por bootstrap, este plan foi regenerado com `compartment_ocid` apontando para `edudocs-ai-prod`. O workload principal continua sem `apply` nesta etapa.
 
 ## Variáveis
 
