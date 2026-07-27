@@ -78,6 +78,10 @@ jobs:
 
       - name: API preflight
         run: |
+          cd apps/api
+          python -m app.ingestion.cli build
+          python -m app.ingestion.cli validate
+          cd ../..
           ruff check apps/api
           pytest apps/api/tests
           cd apps/api
