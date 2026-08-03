@@ -424,11 +424,13 @@ Concluído:
 - Recuperação consciente do estado aplicada uma única vez, criando somente backend set, backend e listener.
 - Plan pós-recuperação sem mudanças pendentes.
 - Aplicação pública validada por Load Balancer em 03/08/2026.
+- VM parada antes do teardown controlado do workload.
+- Workload OCI PAYG removido em 03/08/2026 com saved destroy plan auditado.
+- Compartment `edudocs-ai-prod`, budget `edudocs-ai-demo-payg`, evidências e histórico Git preservados.
 - Validações Terraform, política de custo e CI sem credenciais.
 
 Próximo:
 
-- Encerrar ou manter por tempo estritamente controlado o ambiente PAYG temporário após a coleta das evidências.
 - Validar Groq real fora do ambiente de teste.
 - Configurar domínio e HTTPS.
 
@@ -478,6 +480,12 @@ O apply inicial do workload falhou parcialmente na criação do backend set do L
 - listener.
 
 O resultado da recuperação foi `3 added, 0 changed, 0 destroyed`. O plan pós-aplicação registrou `No changes`, confirmando que a configuração versionada e o estado remoto ficaram alinhados para o escopo validado.
+
+### Encerramento do workload
+
+Após a demonstração, a VM foi parada e o workload PAYG temporário foi removido em 03/08/2026 por um saved destroy plan novo, auditado e aplicado uma única vez pelo wrapper do projeto. O state principal do workload ficou sem recursos gerenciados. Um plan normal posterior pode propor recriação porque a configuração Terraform permanece versionada e reprodutível; esse plan não deve ser aplicado sem nova autorização explícita.
+
+O endpoint público temporário do Load Balancer não está mais disponível. O encerramento preservou o compartment `edudocs-ai-prod`, o budget `edudocs-ai-demo-payg`, o state separado do bootstrap do compartment, os backups externos do state, as evidências em `docs/evidence`, as imagens GHCR e o histórico Git. O Cost Analysis da OCI pode levar algum tempo para refletir a redução de custo após a remoção dos recursos.
 
 Documentação relacionada:
 
@@ -534,9 +542,9 @@ _Terraform sem mudancas apos recuperacao consciente do estado._
 | Corpus PDF | Concluído com documentos fictícios |
 | Interface gráfica | Concluída para uso local |
 | Terraform OCI | Concluído, validado e com plan real auditado |
-| Load Balancer OCI | Provisionado e validado com backend saudável |
+| Load Balancer OCI | Provisionado, validado e removido no teardown controlado |
 | Imagens GHCR | Publicadas por workflow manual e validadas por digest |
-| Demonstração pública OCI | Validada em 03/08/2026 com ambiente PAYG temporário |
+| Demonstração pública OCI | Validada em 03/08/2026; endpoint temporário encerrado após teardown |
 | Screenshots locais | Concluídos e inseridos contextualmente no README |
 | Evidência OCI | Inserida com aplicação, Compute, Load Balancer, backend, orçamento e Terraform |
 
@@ -551,20 +559,21 @@ _Terraform sem mudancas apos recuperacao consciente do estado._
 - O histórico não é persistido entre sessões.
 - O provedor Groq real ainda não foi validado nesta etapa.
 - A demonstração OCI usou `FakeProvider`; ela valida a infraestrutura e o fluxo da aplicação, não a integração remota com Groq.
-- O ambiente OCI PAYG é temporário e deve ser tratado como evidência de demonstração, não como serviço permanente.
+- O ambiente OCI PAYG foi temporário e deve ser tratado como evidência de demonstração, não como serviço permanente.
+- O endpoint público temporário do Load Balancer não está mais disponível após o teardown.
 - Não há domínio próprio nem HTTPS.
 - O apply inicial do workload teve falha parcial; a recuperação consciente do estado foi aplicada uma única vez e o plan posterior ficou sem mudanças.
+- O Cost Analysis da OCI pode apresentar atraso até refletir completamente o encerramento dos recursos do workload.
 - As métricas `fact_coverage_rate`, `complete_document_citation_rate` e `page_recall_at_k` indicam pontos reais de melhoria.
 
 [Voltar ao índice](#índice)
 
 ## Roadmap
 
-1. Encerrar ou manter sob janela curta e explícita o ambiente PAYG temporário usado na demonstração.
-2. Validar Groq real por configuração segura fora do estado do Terraform.
-3. Configurar domínio, HTTPS e variáveis seguras.
-4. Melhorar cobertura factual, precisão de página e citações multi-documento.
-5. Evoluir autenticação, limites de uso e observabilidade antes de qualquer uso prolongado.
+1. Validar Groq real por configuração segura fora do estado do Terraform.
+2. Configurar domínio, HTTPS e variáveis seguras em um novo ambiente aprovado.
+3. Melhorar cobertura factual, precisão de página e citações multi-documento.
+4. Evoluir autenticação, limites de uso e observabilidade antes de qualquer uso prolongado.
 
 [Voltar ao índice](#índice)
 
