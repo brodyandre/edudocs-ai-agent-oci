@@ -6,7 +6,7 @@ locals {
       Project     = "EduDocs-AI"
       Environment = var.environment
       ManagedBy   = "Terraform"
-      CostProfile = "Always-Free-Target"
+      CostProfile = "PAYG-Temporary-E4-Flex"
     },
     var.common_tags,
   )
