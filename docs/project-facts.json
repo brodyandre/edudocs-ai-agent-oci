@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-08-03T15:11:24Z",
+  "generated_at": "2026-08-03T15:59:47Z",
   "repository": {
     "name": "edudocs-ai-agent-oci",
     "url": "https://github.com/brodyandre/edudocs-ai-agent-oci"
   },
   "git": {
     "branch": "main",
-    "head": "98c55d9d82042721c04295ccb7712f863871f799",
-    "last_commit_message": "chore(oci): prepara apply seguro do workload",
-    "last_commit_date": "2026-07-27T16:06:10-03:00",
+    "head": "b6a4150679722d89a7eca17935ec80cfa64500eb",
+    "last_commit_message": "fix(oci): atualiza tag de custo PAYG",
+    "last_commit_date": "2026-08-03T12:34:52-03:00",
     "sync_main_origin": "0\t0",
     "workspace_clean": true,
     "status_short": "",
@@ -90,7 +90,7 @@
     "pytest": {
       "ok": true,
       "returncode": 0,
-      "tests": 209
+      "tests": 224
     }
   },
   "corpus": {
@@ -337,7 +337,23 @@
       "health_path": "/health",
       "backend_uses_private_ip": true,
       "separate_nsgs": true,
+      "backend_set_name": "edudocs-ai-prod-backend-set",
+      "backend_set_name_length": 27,
       "endpoint_available": false
+    },
+    "partial_apply_recovery": {
+      "first_apply_partial": true,
+      "root_cause": "load_balancer_backend_set_name_length_33",
+      "old_backend_set_name": "edudocs-ai-production-backend-set",
+      "new_backend_set_name": "edudocs-ai-prod-backend-set",
+      "new_backend_set_name_length": 27,
+      "automatic_second_apply": false,
+      "destroy_executed": false,
+      "state_preserved": true,
+      "recovery_requires_new_saved_plan": true,
+      "recovery_requires_human_checkpoint": true,
+      "deploy_completed": false,
+      "evidence_completed": false
     },
     "compartment_bootstrap": {
       "present": true,

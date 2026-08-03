@@ -7,6 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 TENANCY = "ocid1." + "tenancy.oc1..unit"
 COMPARTMENT = "ocid1." + "compartment.oc1..unit"
+SAFE_BACKEND_SET_NAME = "edudocs-ai-prod-backend-set"
+OLD_BACKEND_SET_NAME = "edudocs-ai-production-backend-set"
 
 
 def load_script(name: str):
@@ -66,17 +68,29 @@ def valid_plan() -> dict:
             create_change(
                 "module.load_balancer.oci_load_balancer_listener.http",
                 "oci_load_balancer_listener",
-                {"protocol": "HTTP", "port": 80},
+                {
+                    "protocol": "HTTP",
+                    "port": 80,
+                    "default_backend_set_name": SAFE_BACKEND_SET_NAME,
+                },
             ),
             create_change(
                 "module.load_balancer.oci_load_balancer_backend.app",
                 "oci_load_balancer_backend",
-                {"port": 8080, "ip_address": "10.20.10.10"},
+                {
+                    "backendset_name": SAFE_BACKEND_SET_NAME,
+                    "port": 8080,
+                    "ip_address": "10.20.10.10",
+                    "backup": False,
+                    "offline": False,
+                },
             ),
             create_change(
                 "module.load_balancer.oci_load_balancer_backend_set.app",
                 "oci_load_balancer_backend_set",
                 {
+                    "name": SAFE_BACKEND_SET_NAME,
+                    "policy": "ROUND_ROBIN",
                     "health_checker": [
                         {
                             "protocol": "HTTP",
@@ -91,12 +105,87 @@ def valid_plan() -> dict:
     )
 
 
+def state_addresses(include_recovery_resources: bool = False) -> list[str]:
+    addresses = [
+        "data.oci_core_images.ubuntu",
+        "data.oci_identity_availability_domains.available",
+        "module.compute.oci_core_instance.app",
+        "module.load_balancer.oci_load_balancer_load_balancer.this",
+        "module.network.oci_core_internet_gateway.this",
+        "module.network.oci_core_network_security_group.app",
+        "module.network.oci_core_network_security_group.load_balancer",
+        "module.network.oci_core_network_security_group_security_rule.app_egress_all",
+        "module.network.oci_core_network_security_group_security_rule.app_from_load_balancer",
+        "module.network.oci_core_network_security_group_security_rule.load_balancer_http",
+        "module.network.oci_core_network_security_group_security_rule.load_balancer_to_app",
+        "module.network.oci_core_network_security_group_security_rule.ssh_admin",
+        "module.network.oci_core_route_table.public",
+        "module.network.oci_core_subnet.public",
+        "module.network.oci_core_vcn.this",
+    ]
+    if include_recovery_resources:
+        addresses.extend(
+            [
+                "module.load_balancer.oci_load_balancer_backend_set.app",
+                "module.load_balancer.oci_load_balancer_backend.app",
+                "module.load_balancer.oci_load_balancer_listener.http",
+            ]
+        )
+    return addresses
+
+
+def recovery_plan() -> dict:
+    return minimal_plan(valid_plan()["resource_changes"][2:])
+
+
 def test_plan_audit_accepts_valid_create_plan() -> None:
     plan_check = load_script("check_terraform_plan.py")
 
     tfvars = {"tenancy_ocid": TENANCY, "compartment_ocid": COMPARTMENT}
 
     assert plan_check.collect_findings(valid_plan(), tfvars) == []
+
+
+def test_backend_set_name_contract_accepts_current_name() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+
+    assert plan_check.valid_load_balancer_backend_set_name(SAFE_BACKEND_SET_NAME)
+    assert len(SAFE_BACKEND_SET_NAME) == 27
+
+
+def test_backend_set_name_contract_accepts_32_characters() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+
+    assert plan_check.valid_load_balancer_backend_set_name_format("a" * 32)
+
+
+def test_backend_set_name_contract_rejects_invalid_names() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+
+    for value in (OLD_BACKEND_SET_NAME, "a" * 33, "", "backend set", "backend/set"):
+        assert not plan_check.valid_load_balancer_backend_set_name(value)
+
+
+def test_plan_audit_rejects_old_backend_set_name() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+    plan = valid_plan()
+    plan["resource_changes"][4]["change"]["after"]["name"] = OLD_BACKEND_SET_NAME
+
+    kinds = {finding.kind for finding in plan_check.collect_findings(plan)}
+
+    assert "lb-backend-set-name" in kinds
+
+
+def test_plan_audit_rejects_backend_or_listener_name_mismatch() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+    plan = valid_plan()
+    plan["resource_changes"][2]["change"]["after"]["default_backend_set_name"] = "other"
+    plan["resource_changes"][3]["change"]["after"]["backendset_name"] = "other"
+
+    kinds = {finding.kind for finding in plan_check.collect_findings(plan)}
+
+    assert "lb-listener-backend-set" in kinds
+    assert "lb-backend-set-name" in kinds
 
 
 def test_plan_audit_rejects_forbidden_resources_and_mutations() -> None:
@@ -185,6 +274,128 @@ def test_plan_audit_rejects_public_internal_ports_and_latest() -> None:
 
     assert "public-internal-port" in kinds
     assert "latest-reference" in kinds
+
+
+def test_recovery_plan_accepts_only_missing_load_balancer_resources() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+
+    findings = plan_check.collect_recovery_findings(
+        recovery_plan(),
+        {"tenancy_ocid": TENANCY, "compartment_ocid": COMPARTMENT},
+        state_addresses(),
+    )
+
+    assert findings == []
+
+
+def test_recovery_plan_rejects_empty_state() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+
+    kinds = {finding.kind for finding in plan_check.collect_recovery_findings(recovery_plan())}
+
+    assert "state-empty" in kinds
+
+
+def test_recovery_plan_rejects_compute_create() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+    plan = recovery_plan()
+    plan["resource_changes"].append(valid_plan()["resource_changes"][0])
+
+    kinds = {
+        finding.kind
+        for finding in plan_check.collect_recovery_findings(plan, {}, state_addresses())
+    }
+
+    assert "recovery-create-not-allowed" in kinds
+    assert "recovery-compute-create" in kinds
+
+
+def test_recovery_plan_rejects_load_balancer_create() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+    plan = recovery_plan()
+    plan["resource_changes"].append(valid_plan()["resource_changes"][1])
+
+    kinds = {
+        finding.kind
+        for finding in plan_check.collect_recovery_findings(plan, {}, state_addresses())
+    }
+
+    assert "recovery-create-not-allowed" in kinds
+    assert "recovery-lb-create" in kinds
+
+
+def test_recovery_plan_rejects_update_replace_delete() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+    plan = recovery_plan()
+    plan["resource_changes"][0]["change"]["actions"] = ["update"]
+    plan["resource_changes"][1]["change"]["actions"] = ["delete", "create"]
+    plan["resource_changes"][2]["change"]["actions"] = ["delete"]
+
+    kinds = {
+        finding.kind
+        for finding in plan_check.collect_recovery_findings(plan, {}, state_addresses())
+    }
+
+    assert "recovery-mutates-existing-resource" in kinds
+    assert "recovery-unexpected-action" in kinds
+
+
+def test_recovery_plan_rejects_unexpected_resource_or_state_type() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+    plan = recovery_plan()
+    plan["resource_changes"].append(
+        create_change("bad.bucket", "oci_objectstorage_bucket", {"compartment_id": COMPARTMENT})
+    )
+
+    kinds = {
+        finding.kind
+        for finding in plan_check.collect_recovery_findings(
+            plan, {}, [*state_addresses(), "module.bad.oci_core_nat_gateway.this"]
+        )
+    }
+
+    assert "recovery-create-not-allowed" in kinds
+    assert "state-type-unexpected" in kinds
+
+
+def test_recovery_plan_rejects_create_for_resource_already_in_state() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+
+    kinds = {
+        finding.kind
+        for finding in plan_check.collect_recovery_findings(
+            recovery_plan(), {}, state_addresses(include_recovery_resources=True)
+        )
+    }
+
+    assert "recovery-create-not-missing" in kinds
+    assert "recovery-create-set" in kinds
+
+
+def test_initial_policy_still_accepts_sixteen_create_plan() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+    plan = valid_plan()
+    for index in range(5, 16):
+        plan["resource_changes"].append(
+            create_change(
+                f"module.network.oci_core_network_security_group_security_rule.rule_{index}",
+                "oci_core_network_security_group_security_rule",
+                {
+                    "direction": "EGRESS",
+                    "destination": "0.0.0.0/0",
+                    "tcp_options": [],
+                },
+            )
+        )
+
+    assert len(
+        [
+            item
+            for item in plan["resource_changes"]
+            if item["change"]["actions"] == ["create"]
+        ]
+    ) == 16
+    assert plan_check.collect_findings(plan) == []
 
 
 def test_readiness_masks_and_validates_admin_cidr() -> None:

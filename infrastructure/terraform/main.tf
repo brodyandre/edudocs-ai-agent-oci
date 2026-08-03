@@ -43,6 +43,7 @@ module "load_balancer" {
 
   compartment_ocid          = var.compartment_ocid
   name_prefix               = local.name_prefix
+  backend_set_name          = local.load_balancer_backend_set_name
   public_subnet_id          = module.network.public_subnet_id
   load_balancer_nsg_id      = module.network.load_balancer_nsg_id
   app_nsg_id                = module.network.app_nsg_id

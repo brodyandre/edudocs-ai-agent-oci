@@ -1,5 +1,6 @@
 locals {
-  name_prefix = "${var.project_name}-${var.environment}"
+  name_prefix                    = "${var.project_name}-${var.environment}"
+  load_balancer_backend_set_name = "${var.project_name}-prod-backend-set"
 
   common_tags = merge(
     {

@@ -7,7 +7,7 @@ terraform {
 }
 
 locals {
-  backend_set_name = "${var.name_prefix}-backend-set"
+  backend_set_name = var.backend_set_name
   listener_name    = "${var.name_prefix}-http"
 }
 
@@ -52,6 +52,11 @@ resource "oci_load_balancer_load_balancer" "this" {
       condition     = var.load_balancer_nsg_id != var.app_nsg_id
       error_message = "O Load Balancer e a aplicacao devem usar NSGs separados."
     }
+
+    precondition {
+      condition     = length("${var.name_prefix}-lb") >= 1 && length("${var.name_prefix}-lb") <= 255 && can(regex("^[A-Za-z0-9_-]+$", "${var.name_prefix}-lb"))
+      error_message = "O display name do Load Balancer deve conter ate 255 caracteres validos."
+    }
   }
 }
 
@@ -80,6 +85,11 @@ resource "oci_load_balancer_backend_set" "app" {
       condition     = var.health_path == "/health"
       error_message = "O health checker deve usar /health nesta entrega."
     }
+
+    precondition {
+      condition     = local.backend_set_name == "edudocs-ai-prod-backend-set" && length(local.backend_set_name) >= 1 && length(local.backend_set_name) <= 32 && !can(regex("\\s", local.backend_set_name)) && can(regex("^[A-Za-z0-9_-]+$", local.backend_set_name))
+      error_message = "O nome do backend set deve ser edudocs-ai-prod-backend-set, com 1 a 32 caracteres validos e sem espacos."
+    }
   }
 }
 
@@ -106,6 +116,11 @@ resource "oci_load_balancer_backend" "app" {
       )
       error_message = "O backend deve usar IP privado da VM."
     }
+
+    precondition {
+      condition     = oci_load_balancer_backend_set.app.name == local.backend_set_name
+      error_message = "O backend deve apontar para o backend set aprovado."
+    }
   }
 }
 
@@ -120,6 +135,16 @@ resource "oci_load_balancer_listener" "http" {
     precondition {
       condition     = var.listener_port == 80
       error_message = "O listener HTTP deve usar a porta 80 nesta entrega."
+    }
+
+    precondition {
+      condition     = length(local.listener_name) >= 1 && length(local.listener_name) <= 32 && !can(regex("\\s", local.listener_name)) && can(regex("^[A-Za-z0-9_-]+$", local.listener_name))
+      error_message = "O nome do listener deve conter entre 1 e 32 caracteres validos e sem espacos."
+    }
+
+    precondition {
+      condition     = oci_load_balancer_backend_set.app.name == local.backend_set_name
+      error_message = "O listener deve apontar para o backend set aprovado."
     }
   }
 }

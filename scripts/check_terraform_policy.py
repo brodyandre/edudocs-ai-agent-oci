@@ -67,6 +67,8 @@ FORBIDDEN_VERSIONED_SUFFIXES = {
     ".key",
 }
 OCI_COMPARTMENT_PREFIX = "ocid1." + "compartment.oc1."
+LOAD_BALANCER_BACKEND_SET_NAME = "edudocs-ai-prod-backend-set"
+OLD_LOAD_BALANCER_BACKEND_SET_NAME = "edudocs-ai-production-backend-set"
 OCI_PLACEHOLDERS = {
     "ocid1." + "tenancy.oc1..substitua",
     "ocid1." + "compartment.oc1..substitua",
@@ -673,6 +675,91 @@ def find_load_balancer_risks(root: Path) -> list[Finding]:
                 "infrastructure/terraform/modules/load-balancer/main.tf",
                 "backend-count",
                 "Deve existir exatamente um backend.",
+            )
+        )
+
+    root_locals = root / "infrastructure" / "terraform" / "locals.tf"
+    root_checks = root / "infrastructure" / "terraform" / "checks.tf"
+    root_main = root / "infrastructure" / "terraform" / "main.tf"
+    module_variables = (
+        root / "infrastructure" / "terraform" / "modules" / "load-balancer" / "variables.tf"
+    )
+    locals_text = read_text(root_locals) if root_locals.is_file() else ""
+    checks_text = read_text(root_checks) if root_checks.is_file() else ""
+    main_text = read_text(root_main) if root_main.is_file() else ""
+    module_variables_text = (
+        read_text(module_variables) if module_variables.is_file() else ""
+    )
+    lb_module_text = "\n".join(text for _, resource_type, _, text in blocks if resource_type.startswith("oci_load_balancer_"))
+
+    if OLD_LOAD_BALANCER_BACKEND_SET_NAME in all_tf or '"${var.name_prefix}-backend-set"' in all_tf:
+        findings.append(
+            Finding(
+                "infrastructure/terraform/modules/load-balancer/main.tf",
+                "old-backend-set-name",
+                "Nome antigo do backend set nao pode retornar.",
+            )
+        )
+    if (
+        f'load_balancer_backend_set_name = "{LOAD_BALANCER_BACKEND_SET_NAME}"'
+        not in locals_text
+        and f'load_balancer_backend_set_name = "${{var.project_name}}-prod-backend-set"'
+        not in locals_text
+    ):
+        findings.append(
+            Finding(
+                relative(root_locals, root),
+                "backend-set-root-local",
+                "Root module deve declarar load_balancer_backend_set_name seguro.",
+            )
+        )
+    if not re.search(
+        r"backend_set_name\s*=\s*local\.load_balancer_backend_set_name", main_text
+    ):
+        findings.append(
+            Finding(
+                relative(root_main, root),
+                "backend-set-module-input",
+                "Modulo Load Balancer deve receber backend_set_name explicitamente.",
+            )
+        )
+    backend_set_variable_requirements = {
+        f'var.backend_set_name == "{LOAD_BALANCER_BACKEND_SET_NAME}"': "backend-set-exact-validation",
+        "length(var.backend_set_name) <= 32": "backend-set-max-validation",
+        'regex("^[A-Za-z0-9_-]+$", var.backend_set_name)': "backend-set-regex-validation",
+        'regex("\\\\s", var.backend_set_name)': "backend-set-space-validation",
+    }
+    for needle, kind in backend_set_variable_requirements.items():
+        if needle not in module_variables_text:
+            findings.append(
+                Finding(
+                    relative(module_variables, root),
+                    kind,
+                    "Variavel backend_set_name precisa de validacao estrita.",
+                )
+            )
+    if f'local.load_balancer_backend_set_name == "{LOAD_BALANCER_BACKEND_SET_NAME}"' not in checks_text:
+        findings.append(
+            Finding(
+                relative(root_checks, root),
+                "backend-set-root-check",
+                "Root module deve ter check para o nome aprovado do backend set.",
+            )
+        )
+    if "backend_set_name = var.backend_set_name" not in all_tf:
+        findings.append(
+            Finding(
+                "infrastructure/terraform/modules/load-balancer/main.tf",
+                "backend-set-local-from-variable",
+                "Modulo deve derivar backend_set_name da variavel explicita.",
+            )
+        )
+    if not re.search(r"name\s*=\s*local\.backend_set_name", lb_module_text):
+        findings.append(
+            Finding(
+                "infrastructure/terraform/modules/load-balancer/main.tf",
+                "backend-set-resource-name",
+                "Recurso backend set deve usar local.backend_set_name.",
             )
         )
 

@@ -724,7 +724,29 @@ def collect_terraform_readiness(
             in network
             and 'resource "oci_core_network_security_group" "load_balancer"'
             in network,
+            "backend_set_name": "edudocs-ai-prod-backend-set"
+            if "edudocs-ai-prod-backend-set" in load_balancer
+            or "edudocs-ai-prod-backend-set" in checks
+            else None,
+            "backend_set_name_length": 27
+            if "edudocs-ai-prod-backend-set" in load_balancer
+            or "edudocs-ai-prod-backend-set" in checks
+            else None,
             "endpoint_available": False,
+        },
+        "partial_apply_recovery": {
+            "first_apply_partial": True,
+            "root_cause": "load_balancer_backend_set_name_length_33",
+            "old_backend_set_name": "edudocs-ai-production-backend-set",
+            "new_backend_set_name": "edudocs-ai-prod-backend-set",
+            "new_backend_set_name_length": 27,
+            "automatic_second_apply": False,
+            "destroy_executed": False,
+            "state_preserved": True,
+            "recovery_requires_new_saved_plan": True,
+            "recovery_requires_human_checkpoint": True,
+            "deploy_completed": False,
+            "evidence_completed": False,
         },
         "compartment_bootstrap": {
             "present": bootstrap_dir.is_dir(),

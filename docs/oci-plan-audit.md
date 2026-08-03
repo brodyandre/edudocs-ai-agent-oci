@@ -135,3 +135,11 @@ Recursos planejados para criação:
 O compartment dedicado `edudocs-ai-prod` foi criado e validado como `ACTIVE`.
 
 Nenhum recurso do workload principal foi criado. A Entrega 11H substitui o perfil ativo para `VM.Standard.E4.Flex` PAYG 1/8/50; antes de qualquer `terraform apply` do workload, um novo plan real desse perfil deve ser salvo, auditado e revisado junto com capacidade E4 Flex, orçamento PAYG, elegibilidade do Load Balancer e state vazio.
+
+## Recuperação Do Apply Parcial PAYG
+
+Na Entrega 11I, o primeiro `apply-saved-plan` do workload principal foi executado uma única vez e falhou parcialmente na criação de `oci_load_balancer_backend_set`. O nome recusado foi `edudocs-ai-production-backend-set`, com 33 caracteres, acima do limite de 32 caracteres retornado pela OCI.
+
+Não houve segundo apply automático, destroy, import, alteração manual de state, fallback de shape ou criação manual pela OCI. O state principal foi preservado fora do repositório, o state do compartment permaneceu separado e os recursos parciais ativos foram inventariados de forma sanitizada.
+
+A correção adotada substitui o nome derivado por concatenação por `edudocs-ai-prod-backend-set`, com 27 caracteres, passado explicitamente ao módulo do Load Balancer. A recuperação exige novo saved plan, auditoria em modo `partial-apply-recovery`, leitura integral do plan textual e novo checkpoint humano antes de qualquer apply de recuperação.

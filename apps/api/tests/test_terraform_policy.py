@@ -110,6 +110,19 @@ check "dedicated_workload_compartment" {
     error_message = "Workload production deve usar compartment filho dedicado."
   }
 }
+
+check "load_balancer_backend_set_name" {
+  assert {
+    condition = (
+      local.load_balancer_backend_set_name == "edudocs-ai-prod-backend-set"
+      && length(local.load_balancer_backend_set_name) >= 1
+      && length(local.load_balancer_backend_set_name) <= 32
+      && !can(regex("\\\\s", local.load_balancer_backend_set_name))
+      && can(regex("^[A-Za-z0-9_-]+$", local.load_balancer_backend_set_name))
+    )
+    error_message = "Nome seguro do backend set."
+  }
+}
 """
 
 
@@ -148,6 +161,11 @@ resource "oci_core_network_security_group_security_rule" "load_balancer_to_app" 
 
 def valid_load_balancer() -> str:
     return """
+locals {
+  backend_set_name = var.backend_set_name
+  listener_name = "${var.name_prefix}-http"
+}
+
 resource "oci_load_balancer_load_balancer" "this" {
   shape = "flexible"
   is_private = false
@@ -159,7 +177,7 @@ resource "oci_load_balancer_load_balancer" "this" {
 }
 
 resource "oci_load_balancer_backend_set" "app" {
-  name = "app"
+  name = local.backend_set_name
   policy = "ROUND_ROBIN"
   health_checker {
     protocol = "HTTP"
@@ -319,6 +337,7 @@ module "compute" {
 
 module "load_balancer" {
   compartment_ocid   = var.compartment_ocid
+  backend_set_name   = local.load_balancer_backend_set_name
   backend_private_ip = module.compute.private_ip
 }
 
@@ -327,7 +346,9 @@ module "object_storage" {
 }
 """,
         "infrastructure/terraform/data.tf": "",
-        "infrastructure/terraform/locals.tf": "",
+        "infrastructure/terraform/locals.tf": (
+            'locals { load_balancer_backend_set_name = "edudocs-ai-prod-backend-set" }'
+        ),
         "infrastructure/terraform/outputs.tf": "",
         "infrastructure/terraform/terraform.tfvars.example": """
 tenancy_ocid = "ocid1.tenancy.oc1..substitua"
@@ -350,7 +371,19 @@ admin_cidr = "203.0.113.10/32"
         "infrastructure/terraform/modules/compute/variables.tf": "",
         "infrastructure/terraform/modules/compute/outputs.tf": "",
         "infrastructure/terraform/modules/load-balancer/main.tf": valid_load_balancer(),
-        "infrastructure/terraform/modules/load-balancer/variables.tf": "",
+        "infrastructure/terraform/modules/load-balancer/variables.tf": """
+variable "backend_set_name" {
+  validation {
+    condition = (
+      var.backend_set_name == "edudocs-ai-prod-backend-set"
+      && length(var.backend_set_name) >= 1
+      && length(var.backend_set_name) <= 32
+      && !can(regex("\\\\s", var.backend_set_name))
+      && can(regex("^[A-Za-z0-9_-]+$", var.backend_set_name))
+    )
+  }
+}
+""",
         "infrastructure/terraform/modules/load-balancer/outputs.tf": "",
         "infrastructure/terraform/modules/object-storage/main.tf": (
             'access_type = "NoPublicAccess"\n'
@@ -485,6 +518,35 @@ def test_backend_public_ip_is_rejected(tmp_path: Path) -> None:
 
     assert "root-backend-private-ip" in result
     assert "root-backend-public-ip" in result
+
+
+def test_old_backend_set_name_expression_is_rejected(tmp_path: Path) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    lb = tmp_path / "infrastructure/terraform/modules/load-balancer/main.tf"
+    lb.write_text(
+        lb.read_text(encoding="utf-8").replace(
+            "backend_set_name = var.backend_set_name",
+            'backend_set_name = "${var.name_prefix}-backend-set"',
+        ),
+        encoding="utf-8",
+    )
+
+    assert "old-backend-set-name" in kinds(policy, tmp_path)
+
+
+def test_backend_set_name_max_validation_is_required(tmp_path: Path) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    variables = tmp_path / "infrastructure/terraform/modules/load-balancer/variables.tf"
+    variables.write_text(
+        variables.read_text(encoding="utf-8").replace(
+            "&& length(var.backend_set_name) <= 32", ""
+        ),
+        encoding="utf-8",
+    )
+
+    assert "backend-set-max-validation" in kinds(policy, tmp_path)
 
 
 def test_public_8080_is_rejected(tmp_path: Path) -> None:

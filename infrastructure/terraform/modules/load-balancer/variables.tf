@@ -8,6 +8,22 @@ variable "name_prefix" {
   type        = string
 }
 
+variable "backend_set_name" {
+  description = "Nome imutavel do backend set do Load Balancer."
+  type        = string
+
+  validation {
+    condition = (
+      var.backend_set_name == "edudocs-ai-prod-backend-set"
+      && length(var.backend_set_name) >= 1
+      && length(var.backend_set_name) <= 32
+      && !can(regex("\\s", var.backend_set_name))
+      && can(regex("^[A-Za-z0-9_-]+$", var.backend_set_name))
+    )
+    error_message = "backend_set_name deve ser edudocs-ai-prod-backend-set, com 1 a 32 caracteres validos e sem espacos."
+  }
+}
+
 variable "public_subnet_id" {
   description = "OCID da subnet publica regional usada pelo Load Balancer."
   type        = string

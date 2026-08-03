@@ -110,6 +110,7 @@ Valores conservadores com default:
 - `application_root_dir = "/opt/edudocs"`
 - `application_start_timeout_seconds = 600`
 - `create_backup_bucket = false`
+- `load_balancer_backend_set_name = "edudocs-ai-prod-backend-set"` por local interno aprovado, com 27 caracteres e validação de limite/charset.
 
 ## Rede
 
@@ -143,6 +144,8 @@ http://<load_balancer_public_ip>/health
 ```
 
 Esses valores são outputs conhecidos somente após um apply real. O Terraform não fixa IP público, não cria Reserved IP, não cria Network Load Balancer, não cria WAF, não cria certificado e não configura HTTPS nesta entrega.
+
+O backend set usa o nome determinístico `edudocs-ai-prod-backend-set`. A versão anterior derivava `edudocs-ai-production-backend-set` por concatenação de `name_prefix`, resultando em 33 caracteres e falha parcial no primeiro apply PAYG. A configuração atual valida o limite de 32 caracteres, impede espaços ou caracteres inválidos e mantém backend e listener apontando para o mesmo nome aprovado.
 
 ## Cloud-init
 
@@ -185,3 +188,5 @@ Locais externos padrão:
 - `TF_DATA_DIR`: `$HOME/.local/share/edudocs/terraform-workload`
 
 O apply do workload deve usar somente `scripts/terraform_workload.sh apply-saved-plan` com plan salvo em `/tmp`, permissão `600`, auditoria aprovada e confirmação humana literal.
+
+Após uma falha parcial, não reutilize o plan antigo. Gere um novo saved plan a partir do state real e audite com `scripts/check_terraform_plan.py --mode partial-apply-recovery --state-addresses <arquivo>`. Esse modo deve aceitar somente os recursos faltantes do Load Balancer e reprovar qualquer create de Compute, Load Balancer principal ou rede, bem como qualquer update, replace, delete ou import.

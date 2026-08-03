@@ -6,7 +6,9 @@ Este runbook descreve o fluxo controlado para aplicar o workload principal do Ed
 
 O compartment dedicado `edudocs-ai-prod` já existe e permanece gerenciado por uma pilha separada em `infrastructure/terraform-bootstrap/compartment`.
 
-O workload principal em `infrastructure/terraform` ainda não foi aplicado nesta preparação. O apply futuro deve usar somente um plan salvo, auditado e aprovado.
+O primeiro `apply-saved-plan` PAYG do workload principal foi executado uma única vez e falhou parcialmente durante a criação do backend set do Load Balancer. O state principal foi preservado, o state do compartment permaneceu separado e não houve segundo apply automático, destroy, import, alteração manual de state ou criação manual pela OCI.
+
+Recursos parciais do workload ficaram ativos na OCI, incluindo a VM `VM.Standard.E4.Flex` 1/8 e o Load Balancer flex 10/10. A recuperação exige código corrigido, novo plan salvo baseado no state parcial real, auditoria em modo recovery e novo checkpoint humano antes de qualquer apply de recuperação.
 
 ## State Principal
 
@@ -80,6 +82,25 @@ Em caso de falha:
 - não altere shape, memória ou bandwidth para contornar capacidade.
 
 Quando houver recurso parcial, a recuperação deve ser planejada em outra entrega.
+
+## Recuperação Do Apply Parcial PAYG
+
+Causa confirmada da falha parcial:
+
+- Recurso: `oci_load_balancer_backend_set`.
+- Nome recusado: `edudocs-ai-production-backend-set`.
+- Comprimento: 33 caracteres.
+- Limite da OCI: máximo de 32 caracteres.
+
+Correção adotada:
+
+- Nome aprovado: `edudocs-ai-prod-backend-set`.
+- Comprimento: 27 caracteres.
+- Charset: letras, números, `_` e `-`, sem espaços.
+- Origem: local explícito do root module passado ao módulo de Load Balancer.
+- Guardrails: validação Terraform no root, validação da variável do módulo e auditoria de plan em modo `partial-apply-recovery`.
+
+A recuperação não deve recriar VM, Load Balancer principal, VCN, subnet, Internet Gateway, NSGs, shape, CPU, memória, boot volume, bandwidth ou compartment. O novo plan de recuperação deve conter somente creates dos recursos do Load Balancer que estiverem ausentes no state real.
 
 ## Runtime Inicial
 

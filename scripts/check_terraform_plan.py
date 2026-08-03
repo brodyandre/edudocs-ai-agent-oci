@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audita o JSON do primeiro terraform plan real sem executar apply."""
+"""Audita JSONs de terraform plan real sem executar apply."""
 
 from __future__ import annotations
 
@@ -25,6 +25,30 @@ ALLOWED_RESOURCE_TYPES = {
     "oci_load_balancer_listener",
     "oci_load_balancer_load_balancer",
     "oci_objectstorage_bucket",
+}
+LOAD_BALANCER_BACKEND_SET_NAME = "edudocs-ai-prod-backend-set"
+LOAD_BALANCER_BACKEND_SET_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+RECOVERY_ALLOWED_CREATE_ADDRESSES = {
+    "module.load_balancer.oci_load_balancer_backend_set.app",
+    "module.load_balancer.oci_load_balancer_backend.app",
+    "module.load_balancer.oci_load_balancer_listener.http",
+}
+RECOVERY_ALLOWED_CREATE_TYPES = {
+    "oci_load_balancer_backend_set",
+    "oci_load_balancer_backend",
+    "oci_load_balancer_listener",
+}
+NETWORK_RESOURCE_TYPES = {
+    "oci_core_internet_gateway",
+    "oci_core_network_security_group",
+    "oci_core_network_security_group_security_rule",
+    "oci_core_route_table",
+    "oci_core_subnet",
+    "oci_core_vcn",
+}
+EXPECTED_STATE_DATA_TYPES = {
+    "oci_core_images",
+    "oci_identity_availability_domains",
 }
 OCI_COMPARTMENT_PREFIX = "ocid1." + "compartment.oc1."
 
@@ -74,6 +98,41 @@ def load_tfvars(path: Path | None) -> dict[str, str]:
         if match:
             values[key] = match.group(1)
     return values
+
+
+def load_state_addresses(path: Path | None) -> list[str]:
+    if path is None:
+        return []
+    return [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def state_address_type(address: str) -> tuple[str, bool] | None:
+    parts = address.split(".")
+    if len(parts) < 2:
+        return None
+    if parts[0] == "data" and len(parts) >= 3:
+        return parts[-2], True
+    return parts[-2], False
+
+
+def valid_load_balancer_backend_set_name_format(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and 1 <= len(value) <= 32
+        and " " not in value
+        and bool(LOAD_BALANCER_BACKEND_SET_NAME_PATTERN.fullmatch(value))
+    )
+
+
+def valid_load_balancer_backend_set_name(value: Any) -> bool:
+    return (
+        value == LOAD_BALANCER_BACKEND_SET_NAME
+        and valid_load_balancer_backend_set_name_format(value)
+    )
 
 
 def resource_changes(plan: dict[str, Any]) -> list[dict[str, Any]]:
@@ -219,7 +278,29 @@ def validate_resource_values(
             findings.append(
                 Finding(address, "lb-listener", "Listener deve ser HTTP na porta 80.")
             )
+        backend_set_name = values.get("default_backend_set_name")
+        if backend_set_name is not None and not valid_load_balancer_backend_set_name(
+            backend_set_name
+        ):
+            findings.append(
+                Finding(
+                    address,
+                    "lb-listener-backend-set",
+                    "Listener deve apontar para edudocs-ai-prod-backend-set.",
+                )
+            )
     elif resource_type == "oci_load_balancer_backend":
+        backend_set_name = values.get("backendset_name")
+        if backend_set_name is not None and not valid_load_balancer_backend_set_name(
+            backend_set_name
+        ):
+            findings.append(
+                Finding(
+                    address,
+                    "lb-backend-set-name",
+                    "Backend deve apontar para edudocs-ai-prod-backend-set.",
+                )
+            )
         if as_int(values.get("port")) != 8080:
             findings.append(
                 Finding(address, "lb-backend-port", "Backend deve usar porta 8080.")
@@ -232,6 +313,14 @@ def validate_resource_values(
                 Finding(address, "lb-backend-ip", "Backend deve usar IP privado.")
             )
     elif resource_type == "oci_load_balancer_backend_set":
+        if not valid_load_balancer_backend_set_name(values.get("name")):
+            findings.append(
+                Finding(
+                    address,
+                    "lb-backend-set-name",
+                    "Backend set deve se chamar edudocs-ai-prod-backend-set.",
+                )
+            )
         health = values.get("health_checker") or []
         if health:
             item = health[0]
@@ -292,6 +381,136 @@ def summarize(changes: list[dict[str, Any]]) -> dict[str, int]:
         if actions == ["create"]:
             summary[resource_type] = summary.get(resource_type, 0) + 1
     return dict(sorted(summary.items()))
+
+
+def collect_recovery_findings(
+    plan: dict[str, Any],
+    tfvars: dict[str, str] | None = None,
+    state_addresses: list[str] | None = None,
+) -> list[Finding]:
+    state_addresses = state_addresses or []
+    findings: list[Finding] = []
+    changes = resource_changes(plan)
+
+    if not state_addresses:
+        findings.append(
+            Finding("state", "state-empty", "Recovery exige state principal nao vazio.")
+        )
+
+    for address in state_addresses:
+        parsed = state_address_type(address)
+        if parsed is None:
+            findings.append(
+                Finding(address, "state-address-invalid", "Address de state invalido.")
+            )
+            continue
+        resource_type, is_data = parsed
+        allowed = (
+            resource_type in EXPECTED_STATE_DATA_TYPES
+            if is_data
+            else resource_type in ALLOWED_RESOURCE_TYPES
+        )
+        if not allowed:
+            findings.append(
+                Finding(
+                    address,
+                    "state-type-unexpected",
+                    f"Tipo inesperado no state: {resource_type}.",
+                )
+            )
+
+    state_set = set(state_addresses)
+    missing_expected = RECOVERY_ALLOWED_CREATE_ADDRESSES - state_set
+    create_addresses: set[str] = set()
+
+    for item in changes:
+        if item.get("mode") != "managed":
+            continue
+        address = item.get("address", "<unknown>")
+        resource_type = item.get("type", "")
+        change = item.get("change", {})
+        actions = change.get("actions", [])
+        after = change.get("after") or {}
+
+        if resource_type not in ALLOWED_RESOURCE_TYPES:
+            findings.append(
+                Finding(
+                    address,
+                    "resource-not-allowed",
+                    f"Tipo fora da allowlist: {resource_type}.",
+                )
+            )
+        if any(action in actions for action in ("update", "delete", "replace")):
+            findings.append(
+                Finding(
+                    address,
+                    "recovery-mutates-existing-resource",
+                    "Recovery nao pode alterar, substituir ou destruir recursos.",
+                )
+            )
+        if actions == ["create"]:
+            create_addresses.add(address)
+            if (
+                resource_type not in RECOVERY_ALLOWED_CREATE_TYPES
+                or address not in RECOVERY_ALLOWED_CREATE_ADDRESSES
+            ):
+                findings.append(
+                    Finding(
+                        address,
+                        "recovery-create-not-allowed",
+                        "Recovery so pode criar backend set, backend e listener faltantes.",
+                    )
+                )
+            if address not in missing_expected:
+                findings.append(
+                    Finding(
+                        address,
+                        "recovery-create-not-missing",
+                        "Recovery nao pode criar recurso ja presente no state.",
+                    )
+                )
+        elif actions not in (["no-op"], ["read"], []):
+            findings.append(
+                Finding(
+                    address,
+                    "recovery-unexpected-action",
+                    f"Acoes inesperadas no recovery plan: {','.join(actions)}.",
+                )
+            )
+        if (
+            actions == ["create"]
+            or resource_type in RECOVERY_ALLOWED_CREATE_TYPES
+        ):
+            findings.extend(validate_resource_values(address, resource_type, after, tfvars))
+        if actions == ["create"] and resource_type == "oci_core_instance":
+            findings.append(
+                Finding(address, "recovery-compute-create", "Recovery nao pode criar Compute.")
+            )
+        if actions == ["create"] and resource_type == "oci_load_balancer_load_balancer":
+            findings.append(
+                Finding(
+                    address,
+                    "recovery-lb-create",
+                    "Recovery nao pode criar o Load Balancer principal.",
+                )
+            )
+        if actions == ["create"] and resource_type in NETWORK_RESOURCE_TYPES:
+            findings.append(
+                Finding(address, "recovery-network-create", "Recovery nao pode criar rede.")
+            )
+
+    if create_addresses != missing_expected:
+        findings.append(
+            Finding(
+                "plan",
+                "recovery-create-set",
+                "Creates do recovery devem corresponder exatamente aos recursos faltantes.",
+            )
+        )
+
+    findings.extend(collect_text_findings(plan))
+    findings.extend(collect_configuration_findings(plan, tfvars))
+    return findings
 
 
 def collect_configuration_findings(
@@ -376,6 +595,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("plan_json")
     parser.add_argument("--tfvars")
+    parser.add_argument(
+        "--mode",
+        choices=("initial", "partial-apply-recovery"),
+        default="initial",
+    )
+    parser.add_argument("--state-addresses")
     return parser.parse_args(argv)
 
 
@@ -384,15 +609,24 @@ def main(argv: list[str]) -> int:
     try:
         plan = load_plan(Path(args.plan_json))
         tfvars = load_tfvars(Path(args.tfvars) if args.tfvars else None)
+        state_addresses = load_state_addresses(
+            Path(args.state_addresses) if args.state_addresses else None
+        )
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"plan: invalid-json: {exc}", file=sys.stderr)
         return 1
-    findings = collect_findings(plan, tfvars)
+    if args.mode == "partial-apply-recovery":
+        findings = collect_recovery_findings(plan, tfvars, state_addresses)
+    else:
+        findings = collect_findings(plan, tfvars)
     if findings:
         for finding in findings:
             print(f"{finding.address}: {finding.kind}: {finding.message}")
         return 1
-    print("OK: terraform plan real auditado sem acoes proibidas.")
+    if args.mode == "partial-apply-recovery":
+        print("OK: terraform recovery plan auditado sem acoes proibidas.")
+    else:
+        print("OK: terraform plan real auditado sem acoes proibidas.")
     for resource_type, count in summarize(resource_changes(plan)).items():
         print(f"- {resource_type}: {count}")
     return 0
