@@ -47,6 +47,7 @@ O projeto usa uma aplicação educacional fictícia, a EduDocs Academy, para dem
 - [Estrutura do repositório](#estrutura-do-repositorio)
 - [Estado do projeto](#estado-do-projeto)
 - [Infraestrutura OCI](#infraestrutura-oci)
+- [Evidências do deploy OCI](#evidencias-do-deploy-oci)
 - [Entregáveis do Challenge](#entregaveis-do-challenge)
 - [Limitações](#limitacoes)
 - [Roadmap](#roadmap)
@@ -193,18 +194,22 @@ flowchart LR
       C
     end
 
-    subgraph Futuro OCI
+    subgraph OCI PAYG temporaria
       LB[OCI Flexible Load Balancer]
       OCI[VM E4 Flex PAYG]
-      TF[Terraform validavel]
+      TF[Terraform com estado preservado]
     end
 
-    U -. futuro HTTP 80 .-> LB
-    LB -. backend 8080 privado .-> OCI
-    OCI -. Nginx Docker .-> N
+    U -->|HTTP 80| LB
+    LB -->|backend privado 8080| OCI
+    OCI -->|Nginx Docker| N
 ```
 
-No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única porta pública padrão é `8080`, servida pelo Nginx. A infraestrutura OCI agora possui Terraform validável para VCN, Compute `VM.Standard.E4.Flex` temporário PAYG com 1 OCPU, 8 GB de memória e boot volume de 50 GB, cloud-init com bootstrap declarativo da aplicação, OCI Flexible Load Balancer público 10 Mbps e bucket privado opcional. O workload segue sem `apply` e sem deploy OCI ativo.
+No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única porta pública padrão é `8080`, servida pelo Nginx.
+
+Na demonstração pública validada em **03/08/2026**, a aplicação rodou na OCI em `sa-saopaulo-1`, dentro do compartment `edudocs-ai-prod`, com uma VM `VM.Standard.E4.Flex` temporária PAYG de 1 OCPU, 8 GB de memória e boot volume de 50 GB. O acesso público passou pelo OCI Flexible Load Balancer 10/10 Mbps em HTTP 80, encaminhando para o backend privado da VM na porta 8080. API `8000`, web `3000` e Nginx `8080` não ficaram diretamente expostos na instância.
+
+O provedor usado na demonstração remota foi o `FakeProvider` determinístico. O Groq permanece implementado por contrato de provider, mas não é apresentado como evidência do ambiente remoto.
 
 [Voltar ao índice](#índice)
 
@@ -219,7 +224,7 @@ No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única
 | Testes | pytest `>=8.0,<9`, Ruff `>=0.8,<0.14`, Vitest `^3.2.4` |
 | Containers | Docker Compose, Nginx unprivileged, imagens locais para API e web |
 | CI/CD | Quality, API CI, Web CI, Containers CI e Publish Images manual no GitHub Actions |
-| Infraestrutura OCI | Terraform `>=1.15,<1.16`, provider `oracle/oci ~> 8.23`, Compute E4 Flex PAYG 1/8 temporário, Flexible Load Balancer 10 Mbps, cloud-init com systemd/Compose e política estática |
+| Infraestrutura OCI | Terraform `>=1.15,<1.16`, provider `oracle/oci ~> 8.23`, Compute E4 Flex PAYG 1/8 temporário, Flexible Load Balancer 10/10 Mbps, cloud-init com systemd/Compose e política estática |
 
 [Voltar ao índice](#índice)
 
@@ -297,9 +302,9 @@ WEB_IMAGE_REF=ghcr.io/brodyandre/edudocs-ai-web@sha256:SUBSTITUA \
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-No Terraform OCI, os mesmos valores entram por `api_image_ref` e `web_image_ref` em `terraform.tfvars` local, nunca por default versionado. O bootstrap usa `EDUDOCS_LLM_PROVIDER=fake` e `EDUDOCS_EMBEDDING_PROVIDER=fake` para validar infraestrutura sem segredo.
+No Terraform OCI, os mesmos valores entram por variáveis locais não versionadas, nunca por default versionado. O bootstrap usa providers falsos para validar infraestrutura sem credencial externa.
 
-O primeiro deploy público pode usar `FakeProvider` para validar infraestrutura, containers, Load Balancer, health checks, interface e integração sem gravar segredo no Terraform state.
+A demonstração pública de 03/08/2026 usou `FakeProvider` para validar infraestrutura, containers, Load Balancer, health checks, interface e integração sem gravar credencial externa no estado do Terraform.
 
 Documentação relacionada:
 
@@ -367,7 +372,9 @@ Segredos devem ficar fora do repositório. O frontend não recebe chave de LLM, 
 
 O projeto valida prompt injection no dataset, exige fontes para respostas suportadas, recusa perguntas sem base e mantém containers com privilégios reduzidos. As portas internas da API e da web não são publicadas diretamente no Compose local.
 
-Limitações do MVP: sem autenticação, sem rate limit persistente, sem histórico permanente, sem upload de documentos e sem validação real de credenciais OCI.
+Na OCI, o desenho validado expõe HTTP somente pelo Load Balancer. A VM aceita tráfego de aplicação na porta 8080 apenas a partir do NSG do Load Balancer; as portas 3000, 8000 e 8080 não ficaram publicamente abertas na instância durante a validação.
+
+Limitações do MVP: sem autenticação, sem rate limit persistente, sem histórico permanente, sem upload de documentos, sem HTTPS e sem domínio próprio.
 
 [Voltar ao índice](#índice)
 
@@ -379,7 +386,7 @@ Limitações do MVP: sem autenticação, sem rate limit persistente, sem histór
 │   ├── api/        # FastAPI, ingestão, recuperação, LangGraph e avaliação
 │   └── web/        # Next.js, componentes, estilos e testes de interface
 ├── corpus/         # Manifesto, PDFs fictícios, fontes e dataset de avaliação
-├── deploy/         # Exemplos de runtime para deploy futuro
+├── deploy/         # Exemplos de runtime para deploy OCI
 ├── docs/           # Documentação técnica, auditorias e guia de screenshots
 ├── infrastructure/ # Nginx local, cloud-init e Terraform OCI
 ├── scripts/        # Validadores, auditoria, smoke test e sincronização do README
@@ -408,40 +415,69 @@ Concluído:
 - Compose de produção usando referências imutáveis por digest.
 - Scripts e políticas para manifesto de release, pull anônimo e smoke pós-publicação.
 - Terraform OCI com módulos de rede, compute, load balancer e object storage opcional.
-- Stack bootstrap independente aplicada para criar somente o compartment filho `edudocs-ai-prod`, com state local separado fora do repositório.
-- OCI Flexible Load Balancer declarado com backend set, backend privado, listener HTTP 80 e health check `/health`.
+- Stack bootstrap independente aplicada para criar somente o compartment filho `edudocs-ai-prod`, com estado local separado fora do repositório.
+- OCI Flexible Load Balancer provisionado com backend set `edudocs-ai-prod-backend-set`, backend privado, listener HTTP 80 e health check `/health`.
 - Dois NSGs separados: Load Balancer público em 80 e aplicação privada em 8080 a partir do NSG do Load Balancer.
-- Outputs para endpoint futuro `http://<load_balancer_public_ip>` e health URL.
 - Cloud-init com bootstrap declarativo da aplicação via systemd, Docker Compose, Nginx 8080 e imagens GHCR por digest.
 - Readiness OCI ajustada para exigir o compartment filho dedicado `edudocs-ai-prod`; o root compartment da tenancy é proibido para workload.
-- Novo `terraform plan` real do workload gerado e auditado em JSON contra o compartment filho, sem `apply` do workload.
+- Primeiro apply do workload executado uma única vez, com falha parcial preservando o estado.
+- Recuperação consciente do estado aplicada uma única vez, criando somente backend set, backend e listener.
+- Plan pós-recuperação sem mudanças pendentes.
+- Aplicação pública validada por Load Balancer em 03/08/2026.
 - Validações Terraform, política de custo e CI sem credenciais.
 
 Próximo:
 
-- Revisar capacidade E4 Flex 1/8, orçamento PAYG, elegibilidade do Load Balancer 10/10 Mbps e state vazio do workload antes de qualquer apply do workload.
-- Manter o workload principal sem apply até aprovação explícita futura.
-- Usar os digests GHCR validados em `terraform.tfvars` local para iniciar a aplicação na VM durante o primeiro apply aprovado.
-- Obter IP real do Load Balancer após apply.
+- Encerrar ou manter por tempo estritamente controlado o ambiente PAYG temporário após a coleta das evidências.
 - Validar Groq real fora do ambiente de teste.
 - Configurar domínio e HTTPS.
-- Produzir evidências reais do deploy.
 
 [Voltar ao índice](#índice)
 
 ## Infraestrutura OCI
 
-A OCI possui duas frentes Terraform: o bootstrap independente em `infrastructure/terraform-bootstrap/compartment`, aplicado apenas para criar o compartment filho `edudocs-ai-prod`, e o workload principal em `infrastructure/terraform`, com módulos de rede, compute, load balancer, object storage opcional e cloud-init em `infrastructure/cloud-init/app-server.yaml.tftpl`. O cloud-init renderiza Compose produtivo, `runtime.env` não secreto, Nginx 8080 e unidade systemd para iniciar API/Web por imagens GHCR imutáveis. O novo `terraform plan` real do workload foi gerado e auditado em 2026-07-27 contra o compartment filho, mas não houve `apply`, `destroy` ou deploy ativo do workload.
+A OCI possui duas frentes Terraform: o bootstrap independente em `infrastructure/terraform-bootstrap/compartment`, aplicado para criar o compartment filho `edudocs-ai-prod`, e o workload principal em `infrastructure/terraform`, com módulos de rede, compute, load balancer, object storage opcional e cloud-init em `infrastructure/cloud-init/app-server.yaml.tftpl`.
 
-O acesso público futuro será exclusivamente pelo OCI Flexible Load Balancer:
+O cloud-init renderiza Compose produtivo, arquivo de ambiente não secreto, Nginx 8080 e unidade systemd para iniciar API/Web por imagens GHCR imutáveis. Na demonstração PAYG temporária validada em 03/08/2026, o acesso público ocorreu exclusivamente pelo OCI Flexible Load Balancer:
 
 ```text
 Usuário -> OCI Flexible Load Balancer -> VM E4 Flex PAYG -> Nginx -> Next.js/FastAPI
 ```
 
-O endpoint futuro será conhecido somente após apply real e terá o formato `http://<load_balancer_public_ip>`. Uma URL nominal exigirá DNS posteriormente.
+### Recursos validados
 
-O código pode ser criado e validado sem credenciais reais. O Prompt 09 pode criar e validar código Terraform sem credenciais reais. Credenciais OCI, compartment, home region, capacidade E4 Flex 1/8, CIDR administrativo, orçamento PAYG e estratégia de state devem ser confirmados antes do primeiro `terraform plan` real do perfil atual e antes de qualquer `apply`. A partir da Entrega 10C, o workload principal deve usar um compartment filho dedicado; root/tenancy não é alvo permitido. A Entrega 11 prepara o state principal externo em `$HOME/.local/state/edudocs/workload`, `TF_DATA_DIR` externo em `$HOME/.local/share/edudocs/terraform-workload` e wrapper obrigatório para apply somente de saved plan.
+- Região OCI: `sa-saopaulo-1`.
+- Compartment: `edudocs-ai-prod`.
+- Compute: `VM.Standard.E4.Flex`, 1 OCPU, 8 GB de memória e boot volume de 50 GB.
+- Perfil: PAYG temporário para demonstração.
+- Load Balancer: OCI Flexible Load Balancer com 10 Mbps mínimo e 10 Mbps máximo.
+- Listener: HTTP na porta 80.
+- Backend set: `edudocs-ai-prod-backend-set`.
+- Backend: IP privado da VM na porta 8080.
+- Health checker: HTTP em `/health`.
+- Orçamento: `edudocs-ai-demo-payg`, US$ 10, status `ACTIVE` durante a demonstração e alerta de gasto real configurado.
+
+### Validação pública
+
+- Aplicação pública acessível pelo endpoint do Load Balancer.
+- `/health` retornou HTTP 200.
+- `/ready` retornou HTTP 200.
+- Endpoint de documentos retornou HTTP 200.
+- Cinco documentos foram disponibilizados.
+- Chat suportado retornou HTTP 200.
+- Resposta suportada apresentou fontes.
+- Comportamento sem suporte foi validado.
+- Portas 3000, 8000 e 8080 não ficaram publicamente expostas na VM.
+
+### Recuperação Terraform
+
+O apply inicial do workload falhou parcialmente na criação do backend set do Load Balancer por causa do nome anterior `edudocs-ai-production-backend-set`, que excedia o limite da OCI. O estado foi preservado, sem `destroy`, `import` ou mutação manual. Após os commits de correção integrados em `main`, uma recuperação consciente do estado foi aplicada uma única vez e criou somente:
+
+- backend set;
+- backend;
+- listener.
+
+O resultado da recuperação foi `3 added, 0 changed, 0 destroyed`. O plan pós-aplicação registrou `No changes`, confirmando que a configuração versionada e o estado remoto ficaram alinhados para o escopo validado.
 
 Documentação relacionada:
 
@@ -453,15 +489,37 @@ Documentação relacionada:
 - [Controles de custo](docs/cost-controls.md)
 - [Release de containers](docs/container-release.md)
 
+[Voltar ao índice](#índice)
+
+## Evidências do deploy OCI
+
 <!-- EVIDENCE:OCI_APP:START -->
-> **Captura reservada para etapa futura:** `docs/evidence/oci-application.png`.
-> Consulte o guia em `docs/screenshot-guide.md`.
+![Aplicacao publicada na OCI apos deploy real.](docs/evidence/oci-application.png)
+
+_Aplicacao publicada na OCI apos deploy real._
 <!-- EVIDENCE:OCI_APP:END -->
 
 <!-- EVIDENCE:OCI_INSTANCE:START -->
-> **Captura reservada para etapa futura:** `docs/evidence/oci-instance-running.png`.
-> Consulte o guia em `docs/screenshot-guide.md`.
+![Instancia OCI em execucao apos provisionamento real.](docs/evidence/oci-instance-running.png)
+
+_Instancia OCI em execucao apos provisionamento real._
 <!-- EVIDENCE:OCI_INSTANCE:END -->
+
+![OCI Flexible Load Balancer ativo.](docs/evidence/oci-load-balancer-active.png)
+
+_OCI Flexible Load Balancer ativo._
+
+![Backend set do Load Balancer com backend saudavel.](docs/evidence/oci-backend-health-ok.png)
+
+_Backend set do Load Balancer com backend saudavel._
+
+![Orcamento PAYG ativo com alerta de gasto real.](docs/evidence/oci-budget-active.png)
+
+_Orcamento PAYG ativo com alerta de gasto real._
+
+![Terraform sem mudancas apos recuperacao consciente do estado.](docs/evidence/terraform-no-changes.png)
+
+_Terraform sem mudancas apos recuperacao consciente do estado._
 
 [Voltar ao índice](#índice)
 
@@ -476,11 +534,11 @@ Documentação relacionada:
 | Corpus PDF | Concluído com documentos fictícios |
 | Interface gráfica | Concluída para uso local |
 | Terraform OCI | Concluído, validado e com plan real auditado |
-| Load Balancer OCI | Plan real revisado; endpoint real pendente de apply |
+| Load Balancer OCI | Provisionado e validado com backend saudável |
 | Imagens GHCR | Publicadas por workflow manual e validadas por digest |
-| Deploy OCI | Pendente |
+| Demonstração pública OCI | Validada em 03/08/2026 com ambiente PAYG temporário |
 | Screenshots locais | Concluídos e inseridos contextualmente no README |
-| Evidência OCI | Reservada para etapa futura |
+| Evidência OCI | Inserida com aplicação, Compute, Load Balancer, backend, orçamento e Terraform |
 
 [Voltar ao índice](#índice)
 
@@ -492,24 +550,21 @@ Documentação relacionada:
 - Não há autenticação.
 - O histórico não é persistido entre sessões.
 - O provedor Groq real ainda não foi validado nesta etapa.
-- A OCI ainda não foi implantada; o código Terraform, incluindo Load Balancer e bootstrap declarativo da aplicação, foi criado, validado e revisado em plan real sem apply.
-- O compartment dedicado foi criado por apply restrito à pilha `terraform-bootstrap/compartment`; o workload principal ainda não foi aplicado.
+- A demonstração OCI usou `FakeProvider`; ela valida a infraestrutura e o fluxo da aplicação, não a integração remota com Groq.
+- O ambiente OCI PAYG é temporário e deve ser tratado como evidência de demonstração, não como serviço permanente.
+- Não há domínio próprio nem HTTPS.
+- O apply inicial do workload teve falha parcial; a recuperação consciente do estado foi aplicada uma única vez e o plan posterior ficou sem mudanças.
 - As métricas `fact_coverage_rate`, `complete_document_citation_rate` e `page_recall_at_k` indicam pontos reais de melhoria.
 
 [Voltar ao índice](#índice)
 
 ## Roadmap
 
-1. Revisar novamente capacidade E4 Flex 1/8, orçamento PAYG, elegibilidade do OCI Flexible Load Balancer 10 Mbps e state vazio antes de qualquer apply de workload.
-2. Provisionar workload OCI somente após aprovação explícita do plano auditado do workload.
-3. Confirmar saída do cloud-init e health pelo Load Balancer.
-4. Obter IP real do Load Balancer após apply.
-5. Manter imagens API/Web multiarch no GHCR e validar pull anônimo por digest.
-6. Publicar a aplicação em Compute E4 Flex usando digests imutáveis somente após apply aprovado.
-7. Validar `http://<load_balancer_public_ip>` e depois configurar DNS.
-8. Configurar domínio, HTTPS e variáveis seguras.
-9. Produzir capturas reais de aplicação e infraestrutura.
-10. Reavaliar recuperação, cobertura factual e citações multi-documento.
+1. Encerrar ou manter sob janela curta e explícita o ambiente PAYG temporário usado na demonstração.
+2. Validar Groq real por configuração segura fora do estado do Terraform.
+3. Configurar domínio, HTTPS e variáveis seguras.
+4. Melhorar cobertura factual, precisão de página e citações multi-documento.
+5. Evoluir autenticação, limites de uso e observabilidade antes de qualquer uso prolongado.
 
 [Voltar ao índice](#índice)
 
