@@ -285,6 +285,7 @@ def validate_text_contracts(children: dict[str, str], cloud_init: str) -> list[F
         in children["nginx"],
         "nginx-proxy-temp-tmp": "proxy_temp_path /tmp/proxy_temp"
         in children["nginx"],
+        "nginx-api-preserve-prefix": "proxy_pass http://api_upstream;" in children["nginx"],
         "systemd-pull": "docker compose" in children["systemd"]
         and " pull" in children["systemd"],
         "systemd-up": " up --detach --remove-orphans" in children["systemd"],

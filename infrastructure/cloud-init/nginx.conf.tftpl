@@ -52,7 +52,7 @@ http {
         }
 
         location /api/ {
-            proxy_pass http://api_upstream/;
+            proxy_pass http://api_upstream;
         }
 
         location / {

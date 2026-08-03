@@ -265,7 +265,7 @@ server {
   listen ${application_container_port};
   location = ${application_health_path} { proxy_pass http://api_upstream/health; }
   location = /ready { proxy_pass http://api_upstream/ready; }
-  location /api/ { proxy_pass http://api_upstream/; }
+  location /api/ { proxy_pass http://api_upstream; }
 }
 upstream api_upstream { server api:8000; }
 upstream web_upstream { server web:3000; }
