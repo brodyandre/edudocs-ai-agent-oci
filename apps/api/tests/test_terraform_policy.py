@@ -258,6 +258,9 @@ services:
 
 def valid_nginx_template() -> str:
     return """
+pid /tmp/nginx.pid;
+client_body_temp_path /tmp/client_temp;
+proxy_temp_path /tmp/proxy_temp;
 server {
   listen ${application_container_port};
   location = ${application_health_path} { proxy_pass http://api_upstream/health; }
