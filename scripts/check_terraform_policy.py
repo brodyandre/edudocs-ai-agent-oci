@@ -352,28 +352,28 @@ def find_limit_risks(root: Path) -> list[Finding]:
         return []
     text = read_text(variables)
     findings: list[Finding] = []
-    if default_value(text, "compute_shape") != '"VM.Standard.A1.Flex"':
+    if default_value(text, "compute_shape") != '"VM.Standard.E4.Flex"':
         findings.append(
             Finding(
                 relative(variables, root),
-                "shape-not-a1",
-                "compute_shape deve ter default VM.Standard.A1.Flex.",
+                "shape-not-e4",
+                "compute_shape deve ter default VM.Standard.E4.Flex.",
             )
         )
-    if default_value(text, "compute_ocpus") not in {"2", "2.0"}:
+    if default_value(text, "compute_ocpus") not in {"1", "1.0"}:
         findings.append(
             Finding(
                 relative(variables, root),
                 "cpu-default",
-                "compute_ocpus deve ter default 2.",
+                "compute_ocpus deve ter default 1.",
             )
         )
-    if default_value(text, "compute_memory_gbs") not in {"12", "12.0"}:
+    if default_value(text, "compute_memory_gbs") not in {"8", "8.0"}:
         findings.append(
             Finding(
                 relative(variables, root),
                 "memory-default",
-                "compute_memory_gbs deve ter default 12.",
+                "compute_memory_gbs deve ter default 8.",
             )
         )
     if default_value(text, "boot_volume_size_gbs") not in {"50", "50.0"}:
@@ -465,36 +465,28 @@ def find_limit_risks(root: Path) -> list[Finding]:
                 )
             )
 
-    if not re.search(
-        r"var\.compute_ocpus\s*>\s*0\s*&&\s*var\.compute_ocpus\s*<=\s*2", text
-    ):
+    if "var.compute_ocpus == 1" not in text:
         findings.append(
             Finding(
                 relative(variables, root),
                 "cpu-validation",
-                "compute_ocpus deve validar maximo 2.",
+                "compute_ocpus deve validar exatamente 1.",
             )
         )
-    if not re.search(
-        r"var\.compute_memory_gbs\s*>\s*0\s*&&\s*var\.compute_memory_gbs\s*<=\s*12",
-        text,
-    ):
+    if "var.compute_memory_gbs == 8" not in text:
         findings.append(
             Finding(
                 relative(variables, root),
                 "memory-validation",
-                "compute_memory_gbs deve validar maximo 12.",
+                "compute_memory_gbs deve validar exatamente 8.",
             )
         )
-    if not re.search(
-        r"var\.boot_volume_size_gbs\s*>=\s*50\s*&&\s*var\.boot_volume_size_gbs\s*<=\s*100",
-        text,
-    ):
+    if "var.boot_volume_size_gbs == 50" not in text:
         findings.append(
             Finding(
                 relative(variables, root),
                 "boot-validation",
-                "boot_volume_size_gbs deve validar 50 a 100 GB.",
+                "boot_volume_size_gbs deve validar exatamente 50 GB.",
             )
         )
     if "var.load_balancer_min_bandwidth_mbps == 10" not in text:

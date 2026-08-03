@@ -165,20 +165,39 @@ def validate_resource_values(
             )
 
     if resource_type == "oci_core_instance":
-        if values.get("shape") != "VM.Standard.A1.Flex":
+        if values.get("shape") != "VM.Standard.E4.Flex":
             findings.append(
-                Finding(address, "compute-shape", "Compute deve usar VM.Standard.A1.Flex.")
+                Finding(address, "compute-shape", "Compute deve usar VM.Standard.E4.Flex.")
             )
         shape_config = values.get("shape_config") or []
-        if shape_config:
+        if not shape_config:
+            findings.append(
+                Finding(address, "compute-shape-config", "shape_config e obrigatorio.")
+            )
+        else:
             config = shape_config[0]
-            if as_int(config.get("ocpus")) not in {1, 2}:
+            if as_int(config.get("ocpus")) != 1:
                 findings.append(
-                    Finding(address, "compute-ocpus", "OCPUs devem ficar ate 2.")
+                    Finding(address, "compute-ocpus", "OCPUs devem ser exatamente 1.")
                 )
-            if as_int(config.get("memory_in_gbs")) != 12:
+            if as_int(config.get("memory_in_gbs")) != 8:
                 findings.append(
-                    Finding(address, "compute-memory", "Memoria esperada: 12 GB.")
+                    Finding(address, "compute-memory", "Memoria esperada: 8 GB.")
+                )
+        source_details = values.get("source_details") or []
+        if not source_details:
+            findings.append(
+                Finding(address, "compute-source-details", "source_details e obrigatorio.")
+            )
+        else:
+            details = source_details[0]
+            if as_int(details.get("boot_volume_size_in_gbs")) != 50:
+                findings.append(
+                    Finding(
+                        address,
+                        "compute-boot-volume",
+                        "Boot volume esperado: 50 GB.",
+                    )
                 )
     elif resource_type == "oci_load_balancer_load_balancer":
         if values.get("shape") != "flexible" or values.get("is_private") is not False:

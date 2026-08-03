@@ -43,8 +43,9 @@ def valid_plan() -> dict:
                 "oci_core_instance",
                 {
                     **compartment_values,
-                    "shape": "VM.Standard.A1.Flex",
-                    "shape_config": [{"ocpus": 2, "memory_in_gbs": 12}],
+                    "shape": "VM.Standard.E4.Flex",
+                    "shape_config": [{"ocpus": 1, "memory_in_gbs": 8}],
+                    "source_details": [{"boot_volume_size_in_gbs": 50}],
                 },
             ),
             create_change(
@@ -116,6 +117,22 @@ def test_plan_audit_rejects_forbidden_resources_and_mutations() -> None:
 
     assert "resource-not-allowed" in kinds
     assert "mutating-existing-resource" in kinds
+
+
+def test_plan_audit_rejects_a1_profile_or_scaled_e4() -> None:
+    plan_check = load_script("check_terraform_plan.py")
+    plan = valid_plan()
+    instance = plan["resource_changes"][0]["change"]["after"]
+    instance["shape"] = "VM.Standard.A1.Flex"
+    instance["shape_config"] = [{"ocpus": 2, "memory_in_gbs": 12}]
+    instance["source_details"] = [{"boot_volume_size_in_gbs": 100}]
+
+    kinds = {finding.kind for finding in plan_check.collect_findings(plan)}
+
+    assert "compute-shape" in kinds
+    assert "compute-ocpus" in kinds
+    assert "compute-memory" in kinds
+    assert "compute-boot-volume" in kinds
 
 
 def test_plan_audit_rejects_root_or_mismatched_workload_compartment() -> None:
@@ -232,17 +249,17 @@ def test_readiness_rejects_missing_duplicate_or_inactive_compartment() -> None:
     assert "target-compartment-count" in duplicate_kinds
 
 
-def test_readiness_rejects_existing_a1_or_load_balancer() -> None:
+def test_readiness_rejects_existing_compute_or_load_balancer() -> None:
     readiness = load_script("check_oci_readiness.py")
 
     findings, summary = readiness.validate_empty_workload_resources(
         [
             {
-                "shape": "VM.Standard.A1.Flex",
+                "shape": "VM.Standard.E4.Flex",
                 "lifecycle-state": "RUNNING",
             },
             {
-                "shape": "VM.Standard.E2.1.Micro",
+                "shape": "VM.Standard.A1.Flex",
                 "lifecycle-state": "RUNNING",
             },
             {
@@ -261,9 +278,12 @@ def test_readiness_rejects_existing_a1_or_load_balancer() -> None:
     )
 
     assert {finding.kind for finding in findings} == {
+        "existing-compute-instance",
         "existing-a1-flex-instance",
         "existing-load-balancer",
     }
+    assert summary["existing_compute_instances"] == 2
+    assert summary["existing_e4_flex_instances"] == 1
     assert summary["existing_a1_flex_instances"] == 1
     assert summary["existing_load_balancers"] == 1
 
@@ -274,5 +294,11 @@ def test_readiness_accepts_empty_workload_resources() -> None:
     findings, summary = readiness.validate_empty_workload_resources([], [])
 
     assert findings == []
+    assert summary["target_compute_shape"] == "VM.Standard.E4.Flex"
+    assert summary["target_compute_ocpus"] == 1
+    assert summary["target_compute_memory_gbs"] == 8
+    assert summary["target_boot_volume_size_gbs"] == 50
+    assert summary["existing_compute_instances"] == 0
+    assert summary["existing_e4_flex_instances"] == 0
     assert summary["existing_a1_flex_instances"] == 0
     assert summary["existing_load_balancers"] == 0

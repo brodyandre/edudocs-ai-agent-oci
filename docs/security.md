@@ -69,7 +69,7 @@ O achado histórico em `next -> postcss` foi removido com override global para `
 
 ## 15. Imagens Docker
 
-As imagens planejadas devem usar bases oficiais ou confiáveis, camadas enxutas e versões compatíveis com ARM64. Segredos não devem ser copiados para imagens.
+As imagens planejadas devem usar bases oficiais ou confiáveis, camadas enxutas e versões compatíveis com AMD64 para E4 Flex, mantendo publicação multiarch. Segredos não devem ser copiados para imagens.
 
 As imagens GHCR publicadas são artefatos públicos. Por isso, elas não podem conter `.env`, tokens, chaves OCI/SSH, tfvars reais, state, planos Terraform, pasta `.git`, caches do host ou `GROQ_API_KEY`. A VM OCI fará pull anônimo usando referências por digest.
 

@@ -763,7 +763,8 @@ def collect_terraform_readiness(
         "oci_credentials_verified": True,
         "compartment_verified": True,
         "home_region_verified": True,
-        "a1_capacity_verified": False,
+        "e4_capacity_report_available": True,
+        "payg_budget_configured": True,
         "admin_cidr_defined": True,
         "state_strategy_applied": True,
         "terraform_plan_executed": True,
@@ -982,7 +983,7 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - Apply do bootstrap executado: `{terraform.get("bootstrap_apply_executed")}`.
 - Apply do workload executado: `{terraform.get("workload_apply_executed")}`.
 - Endpoint publico disponivel: `{terraform.get("load_balancer", {}).get("endpoint_available")}`.
-- Futuro: validar disponibilidade A1 e elegibilidade final do Load Balancer 10/10 Mbps antes de qualquer apply de workload.
+- Futuro: validar disponibilidade E4 Flex 1/8, orçamento PAYG, state vazio e elegibilidade final do Load Balancer 10/10 Mbps antes de qualquer apply de workload.
 
 ## 12. Checklist de aprovacao antes do apply do workload
 
@@ -991,7 +992,7 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - [x] Regiao e CIDR administrativo verificados.
 - [x] Plan do workload gerado e auditado sem apply.
 - [x] Backend local explicito, wrapper e politica offline do state principal preparados.
-- [ ] Capacidade A1 e elegibilidade do Load Balancer 10/10 Mbps verificadas imediatamente antes do apply do workload.
+- [ ] Capacidade E4 Flex 1/8, orçamento PAYG e elegibilidade do Load Balancer 10/10 Mbps verificadas imediatamente antes do apply do workload.
 - [ ] State principal inicializado externamente e confirmado vazio.
 - [ ] Evidencias locais atualizadas quando disponiveis.
 

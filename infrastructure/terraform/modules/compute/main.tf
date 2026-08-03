@@ -75,23 +75,23 @@ resource "oci_core_instance" "app" {
 
   lifecycle {
     precondition {
-      condition     = var.compute_shape == "VM.Standard.A1.Flex"
-      error_message = "A instancia deve usar VM.Standard.A1.Flex."
+      condition     = var.compute_shape == "VM.Standard.E4.Flex"
+      error_message = "A instancia deve usar VM.Standard.E4.Flex."
     }
 
     precondition {
-      condition     = var.compute_ocpus > 0 && var.compute_ocpus <= 2
-      error_message = "compute_ocpus deve ficar entre 0 e 2."
+      condition     = var.compute_ocpus == 1
+      error_message = "compute_ocpus deve ser exatamente 1."
     }
 
     precondition {
-      condition     = var.compute_memory_gbs > 0 && var.compute_memory_gbs <= 12
-      error_message = "compute_memory_gbs deve ficar entre 0 e 12."
+      condition     = var.compute_memory_gbs == 8
+      error_message = "compute_memory_gbs deve ser exatamente 8."
     }
 
     precondition {
-      condition     = var.boot_volume_size_gbs >= 50 && var.boot_volume_size_gbs <= 100
-      error_message = "boot_volume_size_gbs deve ficar entre 50 e 100."
+      condition     = var.boot_volume_size_gbs == 50
+      error_message = "boot_volume_size_gbs deve ser exatamente 50."
     }
 
     precondition {

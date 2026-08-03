@@ -34,12 +34,12 @@ variable "load_balancer_shape" {
 }
 
 variable "minimum_bandwidth_in_mbps" {
-  description = "Bandwidth minimo em Mbps. Always Free alvo: 10."
+  description = "Bandwidth minimo em Mbps. Perfil minimo aprovado: 10."
   type        = number
 }
 
 variable "maximum_bandwidth_in_mbps" {
-  description = "Bandwidth maximo em Mbps. Always Free alvo: 10."
+  description = "Bandwidth maximo em Mbps. Perfil minimo aprovado: 10."
   type        = number
 }
 

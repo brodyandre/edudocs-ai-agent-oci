@@ -118,8 +118,8 @@ Recursos planejados para criação:
 - Sem Reserved Public IP.
 - Sem Network Load Balancer.
 - Sem bucket criado por padrão.
-- Compute limitado a `VM.Standard.A1.Flex`.
-- Compute: 2 OCPUs e 12 GB de memória.
+- Compute limitado ao perfil vigente na data da auditoria histórica: `VM.Standard.A1.Flex`.
+- Compute auditado naquela data: 2 OCPUs e 12 GB de memória.
 - Boot volume: 50 GB.
 - Load Balancer `flexible` com 10 Mbps mínimo e 10 Mbps máximo.
 - Listener público somente HTTP 80 no Load Balancer.
@@ -134,4 +134,4 @@ Recursos planejados para criação:
 
 O compartment dedicado `edudocs-ai-prod` foi criado e validado como `ACTIVE`.
 
-Nenhum recurso do workload principal foi criado. O próximo passo permitido em etapa futura é revisar novamente capacidade A1, elegibilidade Always Free do Load Balancer, state do workload e o plan salvo antes de qualquer `terraform apply` do workload.
+Nenhum recurso do workload principal foi criado. A Entrega 11H substitui o perfil ativo para `VM.Standard.E4.Flex` PAYG 1/8/50; antes de qualquer `terraform apply` do workload, um novo plan real desse perfil deve ser salvo, auditado e revisado junto com capacidade E4 Flex, orçamento PAYG, elegibilidade do Load Balancer e state vazio.

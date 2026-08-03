@@ -68,35 +68,35 @@ variable "availability_domain" {
 }
 
 variable "compute_shape" {
-  description = "Shape Compute aprovado para alvo Always Free."
+  description = "Shape Compute aprovado para deploy temporario PAYG."
   type        = string
-  default     = "VM.Standard.A1.Flex"
+  default     = "VM.Standard.E4.Flex"
 
   validation {
-    condition     = var.compute_shape == "VM.Standard.A1.Flex"
-    error_message = "compute_shape deve ser exatamente VM.Standard.A1.Flex."
+    condition     = var.compute_shape == "VM.Standard.E4.Flex"
+    error_message = "compute_shape deve ser exatamente VM.Standard.E4.Flex."
   }
 }
 
 variable "compute_ocpus" {
-  description = "OCPUs da instancia A1 Flex. Limite conservador desta entrega: ate 2."
+  description = "OCPUs da instancia E4 Flex. Perfil temporario PAYG aprovado: exatamente 1."
   type        = number
-  default     = 2
+  default     = 1
 
   validation {
-    condition     = var.compute_ocpus > 0 && var.compute_ocpus <= 2
-    error_message = "compute_ocpus deve ser maior que 0 e no maximo 2."
+    condition     = var.compute_ocpus == 1
+    error_message = "compute_ocpus deve ser exatamente 1."
   }
 }
 
 variable "compute_memory_gbs" {
-  description = "Memoria em GB da instancia A1 Flex. Limite conservador desta entrega: ate 12 GB."
+  description = "Memoria em GB da instancia E4 Flex. Perfil temporario PAYG aprovado: exatamente 8 GB."
   type        = number
-  default     = 12
+  default     = 8
 
   validation {
-    condition     = var.compute_memory_gbs > 0 && var.compute_memory_gbs <= 12
-    error_message = "compute_memory_gbs deve ser maior que 0 e no maximo 12."
+    condition     = var.compute_memory_gbs == 8
+    error_message = "compute_memory_gbs deve ser exatamente 8."
   }
 }
 
@@ -106,13 +106,13 @@ variable "boot_volume_size_gbs" {
   default     = 50
 
   validation {
-    condition     = var.boot_volume_size_gbs >= 50 && var.boot_volume_size_gbs <= 100
-    error_message = "boot_volume_size_gbs deve ficar entre 50 e 100."
+    condition     = var.boot_volume_size_gbs == 50
+    error_message = "boot_volume_size_gbs deve ser exatamente 50."
   }
 }
 
 variable "image_ocid" {
-  description = "OCID opcional de imagem ARM compativel. Quando nulo, a imagem Ubuntu sera descoberta por data source."
+  description = "OCID opcional de imagem Ubuntu compativel com E4 Flex. Quando nulo, a imagem Ubuntu sera descoberta por data source."
   type        = string
   default     = null
 
@@ -199,7 +199,7 @@ variable "load_balancer_shape" {
 }
 
 variable "load_balancer_min_bandwidth_mbps" {
-  description = "Bandwidth minimo do Flexible Load Balancer. Always Free alvo: exatamente 10 Mbps."
+  description = "Bandwidth minimo do Flexible Load Balancer. Perfil minimo aprovado: exatamente 10 Mbps."
   type        = number
   default     = 10
 
@@ -210,7 +210,7 @@ variable "load_balancer_min_bandwidth_mbps" {
 }
 
 variable "load_balancer_max_bandwidth_mbps" {
-  description = "Bandwidth maximo do Flexible Load Balancer. Always Free alvo: exatamente 10 Mbps."
+  description = "Bandwidth maximo do Flexible Load Balancer. Perfil minimo aprovado: exatamente 10 Mbps."
   type        = number
   default     = 10
 

@@ -1,6 +1,6 @@
 # Auditoria Terraform do EduDocs AI
 
-Gerado em `2026-07-27T19:04:31Z`.
+Gerado em `2026-08-03T15:11:24Z`.
 
 ## 1. Resumo executivo
 
@@ -11,9 +11,9 @@ Pendente: apply controlado do workload principal, deploy da aplicacao, endpoint 
 ## 2. Baseline Git
 
 - Branch: `main`
-- HEAD: `579f3ae01381bb18fed3478006ba67c1b6a032d0`
-- Ultimo commit: `chore(oci): adota compartment dedicado e revisa o plano`
-- Data do ultimo commit: `2026-07-27T15:29:55-03:00`
+- HEAD: `98c55d9d82042721c04295ccb7712f863871f799`
+- Ultimo commit: `chore(oci): prepara apply seguro do workload`
+- Data do ultimo commit: `2026-07-27T16:06:10-03:00`
 - Sincronismo `main...origin/main`: `0	0`
 - Workspace limpo: `True`
 - Repositorio: `https://github.com/brodyandre/edudocs-ai-agent-oci`
@@ -29,7 +29,7 @@ Pendente: apply controlado do workload principal, deploy da aplicacao, endpoint 
 ## 4. Testes
 
 - Testes Web nesta auditoria: 55.
-- Testes API nesta auditoria: 207.
+- Testes API nesta auditoria: 209.
 
 ## 5. Avaliacao RAG
 
@@ -124,7 +124,7 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - Apply do bootstrap executado: `True`.
 - Apply do workload executado: `False`.
 - Endpoint publico disponivel: `False`.
-- Futuro: validar disponibilidade A1 e elegibilidade final do Load Balancer 10/10 Mbps antes de qualquer apply de workload.
+- Futuro: validar disponibilidade E4 Flex 1/8, orçamento PAYG, state vazio e elegibilidade final do Load Balancer 10/10 Mbps antes de qualquer apply de workload.
 
 ## 12. Checklist de aprovacao antes do apply do workload
 
@@ -133,7 +133,7 @@ Concluido: interface Next.js com linguagem voltada a pessoas nao tecnicas, hero 
 - [x] Regiao e CIDR administrativo verificados.
 - [x] Plan do workload gerado e auditado sem apply.
 - [x] Backend local explicito, wrapper e politica offline do state principal preparados.
-- [ ] Capacidade A1 e elegibilidade do Load Balancer 10/10 Mbps verificadas imediatamente antes do apply do workload.
+- [ ] Capacidade E4 Flex 1/8, orçamento PAYG e elegibilidade do Load Balancer 10/10 Mbps verificadas imediatamente antes do apply do workload.
 - [ ] State principal inicializado externamente e confirmado vazio.
 - [ ] Evidencias locais atualizadas quando disponiveis.
 

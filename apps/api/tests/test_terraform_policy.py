@@ -33,18 +33,18 @@ variable "compartment_ocid" {
   validation { condition = can(regex("^ocid1\\\\.compartment\\\\.oc1\\\\.", var.compartment_ocid)) }
 }
 variable "environment" { default = "production" }
-variable "compute_shape" { default = "VM.Standard.A1.Flex" }
+variable "compute_shape" { default = "VM.Standard.E4.Flex" }
 variable "compute_ocpus" {
-  default = 2
-  validation { condition = var.compute_ocpus > 0 && var.compute_ocpus <= 2 }
+  default = 1
+  validation { condition = var.compute_ocpus == 1 }
 }
 variable "compute_memory_gbs" {
-  default = 12
-  validation { condition = var.compute_memory_gbs > 0 && var.compute_memory_gbs <= 12 }
+  default = 8
+  validation { condition = var.compute_memory_gbs == 8 }
 }
 variable "boot_volume_size_gbs" {
   default = 50
-  validation { condition = var.boot_volume_size_gbs >= 50 && var.boot_volume_size_gbs <= 100 }
+  validation { condition = var.boot_volume_size_gbs == 50 }
 }
 variable "create_backup_bucket" { default = false }
 variable "enable_load_balancer" { default = true }
@@ -562,16 +562,18 @@ def test_reserved_public_ip_is_rejected(tmp_path: Path) -> None:
     assert "reserved-public-ip" in kinds(policy, tmp_path)
 
 
-def test_compute_shape_is_restricted_to_a1_flex(tmp_path: Path) -> None:
+def test_compute_shape_is_restricted_to_e4_flex(tmp_path: Path) -> None:
     policy = load_policy()
     write_valid_tree(tmp_path)
     variables = tmp_path / "infrastructure/terraform/variables.tf"
     variables.write_text(
-        variables.read_text(encoding="utf-8").replace("VM.Standard.A1.Flex", "VM.Standard.E4.Flex"),
+        variables.read_text(encoding="utf-8").replace(
+            "VM.Standard.E4.Flex", "VM.Standard.A1.Flex"
+        ),
         encoding="utf-8",
     )
 
-    assert "shape-not-a1" in kinds(policy, tmp_path)
+    assert "shape-not-e4" in kinds(policy, tmp_path)
 
 
 def test_compute_limits_are_preserved(tmp_path: Path) -> None:
@@ -579,8 +581,8 @@ def test_compute_limits_are_preserved(tmp_path: Path) -> None:
     write_valid_tree(tmp_path)
     variables = tmp_path / "infrastructure/terraform/variables.tf"
     text = variables.read_text(encoding="utf-8")
-    text = text.replace("default = 2", "default = 4", 1)
-    text = text.replace("default = 12", "default = 24", 1)
+    text = text.replace("default = 1", "default = 2", 1)
+    text = text.replace("default = 8", "default = 12", 1)
     text = text.replace("default = 50", "default = 200", 1)
     variables.write_text(text, encoding="utf-8")
 
@@ -589,6 +591,26 @@ def test_compute_limits_are_preserved(tmp_path: Path) -> None:
     assert "cpu-default" in result
     assert "memory-default" in result
     assert "boot-default" in result
+
+
+def test_e4_profile_validations_are_required(tmp_path: Path) -> None:
+    policy = load_policy()
+    write_valid_tree(tmp_path)
+    variables = tmp_path / "infrastructure/terraform/variables.tf"
+    text = variables.read_text(encoding="utf-8")
+    text = text.replace("var.compute_ocpus == 1", "var.compute_ocpus <= 2")
+    text = text.replace("var.compute_memory_gbs == 8", "var.compute_memory_gbs <= 12")
+    text = text.replace(
+        "var.boot_volume_size_gbs == 50",
+        "var.boot_volume_size_gbs >= 50 && var.boot_volume_size_gbs <= 100",
+    )
+    variables.write_text(text, encoding="utf-8")
+
+    result = kinds(policy, tmp_path)
+
+    assert "cpu-validation" in result
+    assert "memory-validation" in result
+    assert "boot-validation" in result
 
 
 def test_public_ssh_and_public_dev_ports_are_rejected(tmp_path: Path) -> None:

@@ -197,11 +197,20 @@ def validate_empty_workload_resources(
     findings: list[Finding] = []
     summary: dict[str, Any] = {}
 
-    active_a1_instances = [
+    active_compute_instances = [
         item
         for item in instances
+        if item.get("lifecycle-state") not in {"TERMINATED", "TERMINATING"}
+    ]
+    active_e4_instances = [
+        item
+        for item in active_compute_instances
+        if item.get("shape") == "VM.Standard.E4.Flex"
+    ]
+    active_a1_instances = [
+        item
+        for item in active_compute_instances
         if item.get("shape") == "VM.Standard.A1.Flex"
-        and item.get("lifecycle-state") not in {"TERMINATED", "TERMINATING"}
     ]
     existing_load_balancers = [
         item
@@ -209,7 +218,22 @@ def validate_empty_workload_resources(
         if item.get("lifecycle-state") not in {"DELETED", "DELETING"}
     ]
 
+    summary["target_compute_shape"] = "VM.Standard.E4.Flex"
+    summary["target_compute_ocpus"] = 1
+    summary["target_compute_memory_gbs"] = 8
+    summary["target_boot_volume_size_gbs"] = 50
+    summary["payg_budget_required"] = True
+    summary["capacity_report_required"] = True
+    summary["existing_compute_instances"] = len(active_compute_instances)
+    summary["existing_e4_flex_instances"] = len(active_e4_instances)
     summary["existing_a1_flex_instances"] = len(active_a1_instances)
+    summary["existing_compute_shapes"] = sorted(
+        {
+            item.get("shape", "UNKNOWN")
+            for item in active_compute_instances
+            if item.get("shape")
+        }
+    )
     summary["existing_a1_flex_states"] = sorted(
         {
             item.get("lifecycle-state", "UNKNOWN")
@@ -226,12 +250,20 @@ def validate_empty_workload_resources(
         }
     )
 
+    if active_compute_instances:
+        findings.append(
+            Finding(
+                "oci:compute",
+                "existing-compute-instance",
+                "Compartment alvo ja possui instancia Compute nao terminada.",
+            )
+        )
     if active_a1_instances:
         findings.append(
             Finding(
                 "oci:compute",
                 "existing-a1-flex-instance",
-                "Compartment alvo ja possui VM A1 Flex nao terminada.",
+                "Compartment alvo ja possui VM A1 Flex nao terminada; A1 nao e o perfil ativo desta entrega.",
             )
         )
     if existing_load_balancers:
@@ -424,6 +456,15 @@ def print_summary(summary: dict[str, Any]) -> None:
         "target_compartment_state",
         "target_compartment_ocid",
         "target_compartment_parent",
+        "target_compute_shape",
+        "target_compute_ocpus",
+        "target_compute_memory_gbs",
+        "target_boot_volume_size_gbs",
+        "payg_budget_required",
+        "capacity_report_required",
+        "existing_compute_instances",
+        "existing_e4_flex_instances",
+        "existing_compute_shapes",
         "existing_a1_flex_instances",
         "existing_a1_flex_states",
         "existing_load_balancers",

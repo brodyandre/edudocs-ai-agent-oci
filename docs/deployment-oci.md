@@ -23,7 +23,8 @@ Concluído:
 
 Pendente:
 
-- Confirmação final de capacidade A1 antes de qualquer apply do workload.
+- Confirmação final de capacidade E4 Flex 1/8 antes de qualquer apply do workload.
+- Confirmação de PAYG ativo e orçamento configurado antes de qualquer apply do workload.
 - Confirmação final de elegibilidade do Flexible Load Balancer 10 Mbps na tenancy antes de qualquer apply do workload.
 - Inicialização real do state externo do workload via wrapper, depois do commit preparatório e CI verde.
 - Qualquer `terraform apply` do workload principal.
@@ -40,7 +41,7 @@ Pendente:
 7. Gerar `terraform plan` real do workload para arquivo local em `/tmp` usando `scripts/terraform_workload.sh`.
 8. Gerar JSON do plan com `scripts/terraform_workload.sh show-json`.
 9. Auditar com `make terraform-plan-check TERRAFORM_PLAN_JSON=/tmp/edudocs-oci.tfplan.json TERRAFORM_TFVARS=infrastructure/terraform/terraform.tfvars`.
-10. Revisar novamente capacidade A1, Free Tier, state e plano salvo.
+10. Revisar novamente capacidade E4 Flex 1/8, orçamento PAYG, state vazio e plano salvo.
 11. Somente após revisão e aprovação humana literal, considerar `scripts/terraform_workload.sh apply-saved-plan`.
 12. Nunca usar `-auto-approve`.
 13. Durante o apply aprovado do workload, o cloud-init instala Docker, faz pull anônimo dos digests, inicia `edudocs-compose.service` e aguarda `/health`.

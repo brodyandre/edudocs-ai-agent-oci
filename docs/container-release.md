@@ -4,7 +4,7 @@ Este guia descreve a publicacao manual das imagens da API e da web no GitHub Con
 
 ## 1. Objetivo
 
-Publicar imagens Docker profissionais, publicas, multi-arquitetura e rastreaveis para o futuro deploy na VM `VM.Standard.A1.Flex`.
+Publicar imagens Docker profissionais, publicas, multi-arquitetura e rastreaveis para o futuro deploy na VM `VM.Standard.E4.Flex`.
 
 ## 2. Imagens
 
@@ -20,7 +20,7 @@ Cada imagem deve publicar um manifest list com:
 - `linux/amd64`
 - `linux/arm64`
 
-ARM64 e obrigatoria para a futura instância Ampere A1.
+AMD64 e obrigatoria para a futura instancia E4 Flex, e ARM64 permanece publicada para portabilidade.
 
 ## 4. Tags
 

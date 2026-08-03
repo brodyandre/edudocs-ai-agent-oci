@@ -23,7 +23,7 @@ Projetar uma solução RAG localmente executável, preparada para deploy em OCI,
 - Combinar busca semântica e lexical para melhorar a recuperação.
 - Isolar o provedor de LLM por interface substituível.
 - Permitir testes com provedor falso determinístico, sem consumo externo.
-- Manter execução local com Docker Compose e preparar deploy em OCI Compute ARM64 via Terraform e OCI Flexible Load Balancer.
+- Manter execução local com Docker Compose e preparar deploy em OCI Compute E4 Flex via Terraform e OCI Flexible Load Balancer.
 
 ## 6. Requisitos funcionais
 
@@ -42,7 +42,7 @@ Projetar uma solução RAG localmente executável, preparada para deploy em OCI,
 - Usar arquivos UTF-8 sem BOM e LF.
 - Ser executável localmente por Docker Compose em etapa futura.
 - Evitar dependências desnecessárias.
-- Ser compatível com ARM64 para OCI Compute.
+- Ser compatível com AMD64 para OCI E4 Flex e manter imagens multiarch publicadas.
 - Registrar logs estruturados e sanitizados.
 - Permitir testes determinísticos sem chamadas externas.
 
@@ -59,7 +59,7 @@ O MVP não inclui autenticação, OCR, upload público de documentos, Kubernetes
 - **Índice local**: armazena vetores, metadados e referências de chunks.
 - **Extração de PDFs**: PyMuPDF para leitura página a página.
 - **LLM**: Groq inicialmente, isolado por contrato de provedor.
-- **Infraestrutura**: Docker Compose local, Nginx, bootstrap Terraform para compartment dedicado e Terraform OCI validável para Compute ARM64 com Flexible Load Balancer 10 Mbps.
+- **Infraestrutura**: Docker Compose local, Nginx, bootstrap Terraform para compartment dedicado e Terraform OCI validável para Compute E4 Flex PAYG 1/8 com Flexible Load Balancer 10 Mbps.
 
 ## 10. Diagrama Mermaid da arquitetura
 
@@ -128,11 +128,11 @@ A execução local usa Docker Compose para subir API, interface, Nginx e volume 
 
 ## 16. Deploy na OCI
 
-O deploy planejado usa OCI Flexible Load Balancer público como único endpoint HTTP, encaminhando para Nginx em Docker na VM Ampere A1 pela porta privada 8080. A pilha `infrastructure/terraform-bootstrap/compartment` cria somente o compartment filho `edudocs-ai-prod`; o código em `infrastructure/terraform` consome esse compartment para criar VCN, subnet pública, dois NSGs, instância A1 Flex, Load Balancer flexível 10/10 Mbps, cloud-init com systemd/Compose por digests GHCR e bucket privado opcional. O workload principal permanece sem `apply` até revisão explícita de um plan próprio.
+O deploy planejado usa OCI Flexible Load Balancer público como único endpoint HTTP, encaminhando para Nginx em Docker na VM E4 Flex PAYG pela porta privada 8080. A pilha `infrastructure/terraform-bootstrap/compartment` cria somente o compartment filho `edudocs-ai-prod`; o código em `infrastructure/terraform` consome esse compartment para criar VCN, subnet pública, dois NSGs, instância E4 Flex 1/8, Load Balancer flexível 10/10 Mbps, cloud-init com systemd/Compose por digests GHCR e bucket privado opcional. O workload principal permanece sem `apply` até revisão explícita de um plan próprio.
 
-## 17. Compatibilidade ARM64
+## 17. Compatibilidade multiarch
 
-As imagens Docker e dependências Python/Node devem ser escolhidas com suporte a ARM64. Bibliotecas nativas devem ser validadas em ambiente compatível antes da entrega final.
+As imagens Docker e dependências Python/Node devem funcionar em AMD64 para E4 Flex e continuar publicadas também em ARM64. Bibliotecas nativas devem ser validadas em ambiente compatível antes da entrega final.
 
 ## 18. Observabilidade mínima
 
@@ -142,7 +142,7 @@ O MVP deve registrar logs estruturados, tempo de recuperação, quantidade de ch
 
 - PDFs com texto mal extraído.
 - Recuperação com contexto insuficiente.
-- Dependências sem bom suporte ARM64.
+- Dependências sem bom suporte multiarch.
 - Latência do provedor externo de LLM.
 - Prompt injection dentro dos documentos.
 - Citações inconsistentes se metadados forem incompletos.
@@ -154,7 +154,7 @@ O MVP deve registrar logs estruturados, tempo de recuperação, quantidade de ch
 - Usar provedor falso determinístico nos testes.
 - Recusar respostas sem evidência suficiente.
 - Sanitizar logs e entradas.
-- Testar dependências em ambiente ARM64 antes do deploy.
+- Testar dependências em ambiente AMD64 antes do deploy E4 Flex e manter verificação ARM64 nas imagens.
 
 ## 21. Decisões adiadas para versões futuras
 

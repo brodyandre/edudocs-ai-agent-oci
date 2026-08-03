@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-27T19:04:31Z",
+  "generated_at": "2026-08-03T15:11:24Z",
   "repository": {
     "name": "edudocs-ai-agent-oci",
     "url": "https://github.com/brodyandre/edudocs-ai-agent-oci"
   },
   "git": {
     "branch": "main",
-    "head": "579f3ae01381bb18fed3478006ba67c1b6a032d0",
-    "last_commit_message": "chore(oci): adota compartment dedicado e revisa o plano",
-    "last_commit_date": "2026-07-27T15:29:55-03:00",
+    "head": "98c55d9d82042721c04295ccb7712f863871f799",
+    "last_commit_message": "chore(oci): prepara apply seguro do workload",
+    "last_commit_date": "2026-07-27T16:06:10-03:00",
     "sync_main_origin": "0\t0",
     "workspace_clean": true,
     "status_short": "",
@@ -90,7 +90,7 @@
     "pytest": {
       "ok": true,
       "returncode": 0,
-      "tests": 207
+      "tests": 209
     }
   },
   "corpus": {
@@ -371,7 +371,8 @@
     "oci_credentials_verified": true,
     "compartment_verified": true,
     "home_region_verified": true,
-    "a1_capacity_verified": false,
+    "e4_capacity_report_available": true,
+    "payg_budget_configured": true,
     "admin_cidr_defined": true,
     "state_strategy_applied": true,
     "terraform_plan_executed": true,

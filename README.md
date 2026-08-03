@@ -195,7 +195,7 @@ flowchart LR
 
     subgraph Futuro OCI
       LB[OCI Flexible Load Balancer]
-      OCI[VM Ampere A1]
+      OCI[VM E4 Flex PAYG]
       TF[Terraform validavel]
     end
 
@@ -204,7 +204,7 @@ flowchart LR
     OCI -. Nginx Docker .-> N
 ```
 
-No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única porta pública padrão é `8080`, servida pelo Nginx. A infraestrutura OCI agora possui Terraform validável para VCN, Compute ARM64, cloud-init com bootstrap declarativo da aplicação, OCI Flexible Load Balancer público 10 Mbps e bucket privado opcional, mas ainda não houve `plan`, `apply` nem deploy OCI ativo.
+No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única porta pública padrão é `8080`, servida pelo Nginx. A infraestrutura OCI agora possui Terraform validável para VCN, Compute `VM.Standard.E4.Flex` temporário PAYG com 1 OCPU, 8 GB de memória e boot volume de 50 GB, cloud-init com bootstrap declarativo da aplicação, OCI Flexible Load Balancer público 10 Mbps e bucket privado opcional. O workload segue sem `apply` e sem deploy OCI ativo.
 
 [Voltar ao índice](#índice)
 
@@ -219,7 +219,7 @@ No runtime local, Docker Compose sobe API, web e Nginx em rede interna. A única
 | Testes | pytest `>=8.0,<9`, Ruff `>=0.8,<0.14`, Vitest `^3.2.4` |
 | Containers | Docker Compose, Nginx unprivileged, imagens locais para API e web |
 | CI/CD | Quality, API CI, Web CI, Containers CI e Publish Images manual no GitHub Actions |
-| Infraestrutura OCI | Terraform `>=1.15,<1.16`, provider `oracle/oci ~> 8.23`, Compute ARM64 A1 Flex, Flexible Load Balancer 10 Mbps, cloud-init com systemd/Compose e política estática |
+| Infraestrutura OCI | Terraform `>=1.15,<1.16`, provider `oracle/oci ~> 8.23`, Compute E4 Flex PAYG 1/8 temporário, Flexible Load Balancer 10 Mbps, cloud-init com systemd/Compose e política estática |
 
 [Voltar ao índice](#índice)
 
@@ -419,7 +419,7 @@ Concluído:
 
 Próximo:
 
-- Revisar capacidade A1, elegibilidade do Load Balancer 10/10 Mbps e state do workload antes de qualquer apply do workload.
+- Revisar capacidade E4 Flex 1/8, orçamento PAYG, elegibilidade do Load Balancer 10/10 Mbps e state vazio do workload antes de qualquer apply do workload.
 - Manter o workload principal sem apply até aprovação explícita futura.
 - Usar os digests GHCR validados em `terraform.tfvars` local para iniciar a aplicação na VM durante o primeiro apply aprovado.
 - Obter IP real do Load Balancer após apply.
@@ -436,12 +436,12 @@ A OCI possui duas frentes Terraform: o bootstrap independente em `infrastructure
 O acesso público futuro será exclusivamente pelo OCI Flexible Load Balancer:
 
 ```text
-Usuário -> OCI Flexible Load Balancer -> VM Ampere A1 -> Nginx -> Next.js/FastAPI
+Usuário -> OCI Flexible Load Balancer -> VM E4 Flex PAYG -> Nginx -> Next.js/FastAPI
 ```
 
 O endpoint futuro será conhecido somente após apply real e terá o formato `http://<load_balancer_public_ip>`. Uma URL nominal exigirá DNS posteriormente.
 
-O código pode ser criado e validado sem credenciais reais. O Prompt 09 pode criar e validar código Terraform sem credenciais reais. Credenciais OCI, compartment, home region, capacidade A1, CIDR administrativo e estratégia de state devem ser confirmados antes do primeiro `terraform plan` real e antes de qualquer `apply`. A partir da Entrega 10C, o workload principal deve usar um compartment filho dedicado; root/tenancy não é alvo permitido. A Entrega 11 prepara o state principal externo em `$HOME/.local/state/edudocs/workload`, `TF_DATA_DIR` externo em `$HOME/.local/share/edudocs/terraform-workload` e wrapper obrigatório para apply somente de saved plan.
+O código pode ser criado e validado sem credenciais reais. O Prompt 09 pode criar e validar código Terraform sem credenciais reais. Credenciais OCI, compartment, home region, capacidade E4 Flex 1/8, CIDR administrativo, orçamento PAYG e estratégia de state devem ser confirmados antes do primeiro `terraform plan` real do perfil atual e antes de qualquer `apply`. A partir da Entrega 10C, o workload principal deve usar um compartment filho dedicado; root/tenancy não é alvo permitido. A Entrega 11 prepara o state principal externo em `$HOME/.local/state/edudocs/workload`, `TF_DATA_DIR` externo em `$HOME/.local/share/edudocs/terraform-workload` e wrapper obrigatório para apply somente de saved plan.
 
 Documentação relacionada:
 
@@ -500,12 +500,12 @@ Documentação relacionada:
 
 ## Roadmap
 
-1. Revisar novamente capacidade A1, elegibilidade do OCI Flexible Load Balancer 10 Mbps e state antes de qualquer apply de workload.
+1. Revisar novamente capacidade E4 Flex 1/8, orçamento PAYG, elegibilidade do OCI Flexible Load Balancer 10 Mbps e state vazio antes de qualquer apply de workload.
 2. Provisionar workload OCI somente após aprovação explícita do plano auditado do workload.
 3. Confirmar saída do cloud-init e health pelo Load Balancer.
 4. Obter IP real do Load Balancer após apply.
 5. Manter imagens API/Web multiarch no GHCR e validar pull anônimo por digest.
-6. Publicar a aplicação em Compute ARM64 usando digests imutáveis somente após apply aprovado.
+6. Publicar a aplicação em Compute E4 Flex usando digests imutáveis somente após apply aprovado.
 7. Validar `http://<load_balancer_public_ip>` e depois configurar DNS.
 8. Configurar domínio, HTTPS e variáveis seguras.
 9. Produzir capturas reais de aplicação e infraestrutura.

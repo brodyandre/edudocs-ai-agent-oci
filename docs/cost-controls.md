@@ -1,14 +1,14 @@
 # Controles De Custo
 
-O Terraform foi desenhado para mirar um perfil Always Free conservador, sem prometer gratuidade real. Limites e disponibilidade dependem da tenancy, região, disponibilidade A1 e políticas da OCI.
+O Terraform foi ajustado para um deploy temporário PAYG mínimo e explícito em E4 Flex. Limites, disponibilidade e custo dependem da tenancy, região, capacidade E4 e políticas da OCI.
 
 ## Controles Aplicados
 
-- Shape travado em `VM.Standard.A1.Flex`.
+- Shape travado em `VM.Standard.E4.Flex`.
 - Workload restrito ao compartment filho dedicado `edudocs-ai-prod`; root/tenancy não é alvo permitido.
-- Default de 2 OCPUs.
-- Default de 12 GB de memória.
-- Boot volume default de 50 GB, com validação até 100 GB.
+- Default de 1 OCPU.
+- Default de 8 GB de memória.
+- Boot volume travado em 50 GB.
 - Um único OCI Flexible Load Balancer.
 - Shape do Load Balancer travado em `flexible`.
 - Bandwidth mínimo do Load Balancer travado em 10 Mbps.
@@ -37,7 +37,8 @@ Antes de qualquer `apply`:
 
 - Verifique se a home region é a região pretendida.
 - Verifique se `edudocs-ai-prod` existe, está `ACTIVE` e é filho direto da tenancy.
-- Verifique se a capacidade A1 está disponível.
+- Verifique se a capacidade E4 Flex 1/8 está disponível.
+- Verifique se PAYG e orçamento estão ativos.
 - Verifique se a tenancy aceita OCI Flexible Load Balancer 10/10 Mbps antes de qualquer apply.
 - Verifique limites e cotas do compartment.
 - Verifique se o boot volume proposto cabe no orçamento.
@@ -51,7 +52,7 @@ O script `scripts/check_terraform_policy.py` bloqueia padrões de risco como:
 
 - `terraform apply` ou `terraform destroy` em workflow.
 - Uso de `-auto-approve`.
-- Shape diferente de A1 Flex.
+- Shape diferente de E4 Flex.
 - CPU ou memória acima dos limites conservadores.
 - SSH público para `0.0.0.0/0`.
 - Portas públicas de desenvolvimento.
@@ -68,10 +69,10 @@ O script `scripts/check_terraform_policy.py` bloqueia padrões de risco como:
 
 ## Estado E Planos
 
-O primeiro `terraform plan` real foi salvo fora do Git e auditado por `scripts/check_terraform_plan.py`. O plan propõe somente creates permitidos para VCN, subnet, NSGs, uma VM A1 Flex, um Flexible Load Balancer 10/10 Mbps e componentes associados. Ele não executa `apply`, não cria recursos e não comprova disponibilidade final de Free Tier.
+O primeiro `terraform plan` real anterior foi salvo fora do Git e auditado por `scripts/check_terraform_plan.py`. A Entrega 11H substitui o perfil ativo para E4 Flex PAYG 1/8/50; um novo plan real desse perfil ainda deve ser gerado e auditado antes de qualquer `apply`.
 
 Na Entrega 10C, a criação do compartment ficou isolada em `infrastructure/terraform-bootstrap/compartment` e gerou exatamente um recurso `oci_identity_compartment`. O novo plan do workload apontou todos os recursos para o compartment filho dedicado e não foi aplicado nessa etapa.
 
-Na preparação da Entrega 11, o workload ganhou backend local explícito sem caminho versionado, wrapper para state principal externo e política de apply somente por saved plan. O apply real continua condicionado à revisão de capacidade A1, elegibilidade do Load Balancer 10/10 Mbps e confirmação humana literal.
+Na preparação da Entrega 11, o workload ganhou backend local explícito sem caminho versionado, wrapper para state principal externo e política de apply somente por saved plan. O apply real continua condicionado à revisão de capacidade E4 Flex 1/8, orçamento PAYG, elegibilidade do Load Balancer 10/10 Mbps, state vazio e confirmação humana literal.
 
 Arquivos `terraform.tfvars`, `*.tfstate`, `*.tfplan` e `tfplan` não devem ser versionados. O arquivo `.terraform.lock.hcl` deve ser versionado para fixar o provedor validado.

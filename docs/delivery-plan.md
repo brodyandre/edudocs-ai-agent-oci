@@ -48,14 +48,14 @@ Uma entrega é considerada pronta quando possui implementação ou documentaçã
 - Provedor falso antes de testes confiáveis.
 - API antes da interface integrada.
 - Docker Compose antes do deploy.
-- Terraform, Load Balancer e Nginx antes do link público; credenciais, compartment dedicado, home region e CIDR administrativo já validados para o plan; capacidade A1, elegibilidade do LB 10 Mbps e state devem ser revisados antes de qualquer apply de workload.
+- Terraform, Load Balancer e Nginx antes do link público; credenciais, compartment dedicado, home region, CIDR administrativo, PAYG e orçamento já validados para o perfil atual; capacidade E4 Flex 1/8, elegibilidade do LB 10 Mbps e state vazio devem ser revisados antes de qualquer apply de workload.
 
 ## Riscos
 
 - Escopo crescer além do MVP.
 - PDFs fictícios não cobrirem perguntas suficientes.
 - Extração de texto gerar chunks pouco úteis.
-- Dependências terem problemas em ARM64.
+- Dependências terem problemas multiarch.
 - Provedor externo introduzir instabilidade.
 - Deploy consumir tempo maior que o previsto.
 

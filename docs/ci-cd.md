@@ -40,7 +40,7 @@ O workflow da API constrói e valida o índice determinístico antes da avaliaç
 
 `Containers CI` valida imagens da API e da web para `linux/amd64` com Docker Buildx, sem push.
 
-## 10. Builds ARM64
+## 10. Builds Multiarch
 
 O mesmo workflow valida API e web para `linux/arm64` com QEMU e Buildx, usando cache por arquitetura, sem publicação.
 

@@ -23,17 +23,23 @@ ssh_public_key_path = "~/.ssh/id_ed25519.pub"
 api_image_ref = "ghcr.io/brodyandre/edudocs-ai-api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 web_image_ref = "ghcr.io/brodyandre/edudocs-ai-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
-# Opcional: fixe uma imagem ARM Ubuntu validada manualmente antes do primeiro plan real.
+# Opcional: fixe uma imagem Ubuntu compativel com E4 Flex validada manualmente antes do primeiro plan real.
 # image_ocid = "ocid1.image.oc1..substitua"
 
-# Opcional: fixe o availability domain apos confirmar capacidade A1 na tenancy.
+# Opcional: fixe o availability domain apos confirmar capacidade E4 Flex 1/8 na tenancy.
 # availability_domain = "abcD:SA-SAOPAULO-1-AD-1"
+
+# Perfil PAYG temporario aprovado: E4 Flex com 1 OCPU, 8 GB de memoria e boot volume de 50 GB.
+# compute_shape          = "VM.Standard.E4.Flex"
+# compute_ocpus          = 1
+# compute_memory_gbs     = 8
+# boot_volume_size_gbs   = 50
 
 # Opcional: habilite um bucket privado de backup apenas quando houver estrategia clara de uso.
 # create_backup_bucket = true
 # backup_bucket_name   = "edudocs-ai-production-backup"
 
-# Load Balancer Always Free alvo: mantenha os defaults 10/10 Mbps.
+# Load Balancer flexible no perfil minimo aprovado: mantenha os defaults 10/10 Mbps.
 # A elegibilidade precisa ser confirmada na tenancy antes de qualquer apply.
 # load_balancer_shape              = "flexible"
 # load_balancer_min_bandwidth_mbps = 10

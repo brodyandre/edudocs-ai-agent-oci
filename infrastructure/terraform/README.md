@@ -9,7 +9,7 @@ O compartment `edudocs-ai-prod` é criado por uma pilha independente em `../terr
 O código define:
 
 - VCN, Internet Gateway, route table, subnet pública e dois NSGs.
-- Uma instância `VM.Standard.A1.Flex` com 2 OCPUs, 12 GB de memória e boot volume de 50 GB.
+- Uma instância `VM.Standard.E4.Flex` temporária PAYG com 1 OCPU, 8 GB de memória e boot volume de 50 GB.
 - Um OCI Flexible Load Balancer público com 10 Mbps mínimo e 10 Mbps máximo.
 - Listener HTTP porta 80, backend set `ROUND_ROBIN`, backend no IP privado da VM porta 8080 e health checker `GET /health`.
 - Cloud-init para instalar Docker, renderizar `docker-compose.yml`, `runtime.env`, Nginx, unidade systemd e aguardar o health check da aplicação.
@@ -24,7 +24,8 @@ Antes do primeiro `terraform plan` real e antes de qualquer `apply`, confirme:
 - Credenciais OCI configuradas fora do Git, por exemplo em `~/.oci/config`.
 - Tenancy e compartment filho dedicado corretos. `compartment_ocid` deve apontar para um OCID de `compartment`, nunca para a tenancy/root.
 - Home region escolhida para evitar criação acidental em região errada.
-- Capacidade A1 disponível na availability domain escolhida.
+- Capacidade E4 Flex 1/8 disponível na availability domain escolhida.
+- Orçamento PAYG configurado e revisado.
 - Elegibilidade do OCI Flexible Load Balancer 10 Mbps confirmada na tenancy.
 - `admin_cidr` com IP administrativo em `/32`, nunca `0.0.0.0/0`.
 - State principal externo inicializado pelo wrapper `../../scripts/terraform_workload.sh`, sem caminho de state versionado e sem state dentro do repositório.
@@ -90,9 +91,9 @@ Valores sem default por segurança:
 
 Valores conservadores com default:
 
-- `compute_shape = "VM.Standard.A1.Flex"`
-- `compute_ocpus = 2`
-- `compute_memory_gbs = 12`
+- `compute_shape = "VM.Standard.E4.Flex"`
+- `compute_ocpus = 1`
+- `compute_memory_gbs = 8`
 - `boot_volume_size_gbs = 50`
 - `enable_load_balancer = true`
 - `load_balancer_shape = "flexible"`
