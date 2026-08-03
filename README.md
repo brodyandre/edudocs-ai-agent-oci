@@ -10,10 +10,10 @@ Agente de IA para consultar documentos educacionais fictícios com respostas ras
 [![Containers CI](https://github.com/brodyandre/edudocs-ai-agent-oci/actions/workflows/containers-ci.yml/badge.svg)](https://github.com/brodyandre/edudocs-ai-agent-oci/actions/workflows/containers-ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-[Demonstração](#demonstracao-da-experiencia) ·
+[Demonstração](#demonstração-da-experiência) ·
 [Arquitetura](#arquitetura) ·
-[Execução local](#execucao-local) ·
-[Avaliação](#qualidade-e-avaliacao) ·
+[Execução local](#execução-local) ·
+[Avaliação](#qualidade-e-avaliação) ·
 [GitHub Actions](#github-actions)
 
 </div>
@@ -28,30 +28,30 @@ O projeto usa uma aplicação educacional fictícia, a EduDocs Academy, para dem
 
 ## Índice
 
-- [Demonstração da experiência](#demonstracao-da-experiencia)
+- [Demonstração da experiência](#demonstração-da-experiência)
 - [Problema resolvido](#problema-resolvido)
 - [Como funciona](#como-funciona)
 - [Como o agente responde](#como-o-agente-responde)
-- [Quando a informação não existe](#quando-a-informacao-nao-existe)
-- [Documentos disponíveis](#documentos-disponiveis)
-- [Experiência para pessoas não técnicas](#experiencia-para-pessoas-nao-tecnicas)
+- [Quando a informação não existe](#quando-a-informação-não-existe)
+- [Documentos disponíveis](#documentos-disponíveis)
+- [Experiência para pessoas não técnicas](#experiência-para-pessoas-não-técnicas)
 - [Arquitetura](#arquitetura)
 - [Tecnologias](#tecnologias)
-- [Qualidade e avaliação](#qualidade-e-avaliacao)
+- [Qualidade e avaliação](#qualidade-e-avaliação)
 - [GitHub Actions](#github-actions)
-- [Docker e execução integrada](#docker-e-execucao-integrada)
+- [Docker e execução integrada](#docker-e-execução-integrada)
 - [Release de containers](#release-de-containers)
-- [Execução local](#execucao-local)
+- [Execução local](#execução-local)
 - [Perguntas de exemplo](#perguntas-de-exemplo)
-- [Segurança](#seguranca)
-- [Estrutura do repositório](#estrutura-do-repositorio)
+- [Segurança](#segurança)
+- [Estrutura do repositório](#estrutura-do-repositório)
 - [Estado do projeto](#estado-do-projeto)
 - [Infraestrutura OCI](#infraestrutura-oci)
-- [Evidências do deploy OCI](#evidencias-do-deploy-oci)
-- [Entregáveis do Challenge](#entregaveis-do-challenge)
-- [Limitações](#limitacoes)
+- [Evidências do deploy OCI](#evidências-do-deploy-oci)
+- [Entregáveis do Challenge](#entregáveis-do-challenge)
+- [Limitações](#limitações)
 - [Roadmap](#roadmap)
-- [Licença](#licenca)
+- [Licença](#licença)
 - [Autor](#autor)
 
 ## Demonstração da experiência
