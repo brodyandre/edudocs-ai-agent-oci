@@ -74,6 +74,10 @@ resource "oci_core_instance" "app" {
   }
 
   lifecycle {
+    ignore_changes = [
+      metadata["user_data"],
+    ]
+
     precondition {
       condition     = var.compute_shape == "VM.Standard.E4.Flex"
       error_message = "A instancia deve usar VM.Standard.E4.Flex."
